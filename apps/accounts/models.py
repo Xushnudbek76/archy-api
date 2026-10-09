@@ -23,5 +23,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         constraints = [models.UniqueConstraint(Lower("email"), name="user_email_case_unique")]
 
+    def clean(self):
+        super().clean()
+        self.email = self.email.strip().lower()
+
+    def save(self, *args, **kwargs):
+        self.email = self.email.strip().lower()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return self.email
+
+
+class SignupAttempt(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="signup_attempts")
+    password_hash = models.CharField(max_length=128)
+    display_name = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)

@@ -101,7 +101,7 @@ def test_signup_rejects_privilege_fields(browser, field):
     assert not User.objects.exists()
 
 
-def test_signup_duplicate_is_generic_and_does_not_change_password(browser):
+def test_repeated_signup_keeps_identity_unusable_until_confirmed(browser):
     assert signup(browser).status_code == 202
     response = signup(
         browser,
@@ -111,7 +111,7 @@ def test_signup_duplicate_is_generic_and_does_not_change_password(browser):
     )
     assert response.status_code == 202
     assert User.objects.count() == 1
-    assert User.objects.get().check_password(PASSWORD)
+    assert not User.objects.get().has_usable_password()
 
 
 @pytest.mark.parametrize(
@@ -204,16 +204,11 @@ def test_reset_expiry(browser):
 
 
 def test_confirmation_malformed_or_expired(browser, monkeypatch):
-    from apps.accounts import tokens
-
     assert signup(browser).status_code == 202
     query = email_query()
     assert post(browser, "/v1/auth/confirm-email", {"token": "invalid"}).status_code == 400
-
-    def expired(*args, **kwargs):
-        raise signing.SignatureExpired("expired")
-
-    monkeypatch.setattr(tokens.signing, "loads", expired)
+    future = signing.time.time() + 86401
+    monkeypatch.setattr(signing.time, "time", lambda: future)
     assert post(browser, "/v1/auth/confirm-email", query).status_code == 400
     assert not User.objects.get().is_active
 
@@ -263,3 +258,83 @@ def test_old_confirmation_cannot_reactivate_disabled_account(browser):
     user.save()
     assert post(browser, "/v1/auth/confirm-email", query).status_code == 400
     assert not User.objects.get().is_active
+
+
+@pytest.mark.parametrize("owner_first", [False, True])
+def test_confirmation_uses_credentials_from_its_signup_attempt(browser, owner_first):
+    attacker = "Attacker-known-passphrase-936!"
+    owner = "Owner-only-passphrase-217!"
+    first, second = (owner, attacker) if owner_first else (attacker, owner)
+    assert signup(browser, password=first, passwordConfirmation=first).status_code == 202
+    first_link = email_query()
+    assert signup(browser, password=second, passwordConfirmation=second).status_code == 202
+    second_link = email_query()
+    chosen = first_link if owner_first else second_link
+    assert post(browser, "/v1/auth/confirm-email", chosen).status_code == 200
+    user = User.objects.get()
+    assert user.check_password(owner)
+    assert not user.check_password(attacker)
+    assert (
+        post(
+            browser, "/v1/auth/confirm-email", second_link if owner_first else first_link
+        ).status_code
+        == 400
+    )
+
+
+def test_public_signup_does_not_reactivate_disabled_provisioned_staff(browser):
+    user = User.objects.create_superuser("person@example.com", PASSWORD)
+    user.is_active = False
+    user.save()
+    assert signup(browser).status_code == 202
+    assert not User.objects.get().is_active
+    assert not getattr(mail, "outbox", [])
+
+
+def test_admin_form_email_normalization_and_api_login(browser):
+    from apps.accounts.admin import AccountChangeForm, AccountCreationForm
+
+    form = AccountCreationForm(
+        data={
+            "email": "MixedCase@Example.COM",
+            "display_name": "Owner",
+            "password1": PASSWORD,
+            "password2": PASSWORD,
+        }
+    )
+    assert form.is_valid(), form.errors
+    user = form.save()
+    assert user.email == "mixedcase@example.com"
+    user.is_active = True
+    user.save()
+    change = AccountChangeForm(
+        instance=user,
+        data={"email": "ChangedCase@Example.COM", "display_name": "Owner", "is_active": True},
+    )
+    assert change.is_valid(), change.errors
+    user = change.save()
+    assert user.email == "changedcase@example.com"
+    assert login(browser, email="ChangedCase@Example.COM").status_code == 200
+
+
+def test_login_can_resolve_case_identity_from_legacy_direct_write(browser):
+    user = active_user()
+    User.objects.filter(pk=user.pk).update(email="Person@Example.COM")
+    assert login(browser).status_code == 200
+
+
+def test_reset_validates_password_against_actual_account(browser):
+    user = User.objects.create_user("longuniqueperson987@example.com", PASSWORD, is_active=True)
+    response = post(
+        browser,
+        "/v1/auth/password-reset/confirm",
+        {
+            "uid": urlsafe_base64_encode(force_bytes(user.pk)),
+            "token": default_token_generator.make_token(user),
+            "password": "longuniqueperson987",
+            "passwordConfirmation": "longuniqueperson987",
+        },
+    )
+    assert response.status_code == 400
+    user.refresh_from_db()
+    assert user.check_password(PASSWORD)

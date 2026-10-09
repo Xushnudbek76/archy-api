@@ -16,6 +16,7 @@ ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 INSTALLED_APPS = [
+    "apps.core",  # Command overrides must precede Django applications.
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -24,7 +25,6 @@ INSTALLED_APPS = [
     "django.contrib.admin",
     "rest_framework",
     "corsheaders",
-    "apps.core",
 ]
 MIDDLEWARE = [
     "apps.core.middleware.RequestMiddleware",
@@ -87,7 +87,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {"login": "10/min", "signup": "3/hour", "reset": "3/hour"},
 }
 PASSWORD_RESET_TIMEOUT = 3600
-EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
+EMAIL_BACKEND = "apps.core.mail.PrivateFileEmailBackend"
 EMAIL_FILE_PATH = BASE_DIR / ".local" / "mail"
 DEFAULT_FROM_EMAIL = "Archy <noreply@archy.local>"
 FRONTEND_ORIGIN = environment.frontend_origin
