@@ -101,3 +101,6 @@ LOGGING = {
         "django.security.csrf": {"handlers": ["null"], "propagate": False},
     },
 }
+
+INSTALLED_APPS += ["apps.accounts", "apps.courses"]
+AUTH_USER_MODEL = "accounts.User"
