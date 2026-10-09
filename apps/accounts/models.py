@@ -12,6 +12,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     display_name = models.CharField(max_length=100, blank=True)
     is_active = models.BooleanField(default=False)
+    email_confirmed_at = models.DateTimeField(null=True, blank=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
