@@ -1,17 +1,9 @@
-from collections.abc import Mapping
-
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.accounts.models import User
-
-
-class StrictSerializer(serializers.Serializer):
-    def to_internal_value(self, data):
-        if not isinstance(data, Mapping) or set(data) - set(self.fields):
-            raise serializers.ValidationError({"non_field_errors": ["Unsupported request fields"]})
-        return super().to_internal_value(data)
+from apps.core.serializers import StrictSerializer
 
 
 class EmailSerializer(StrictSerializer):

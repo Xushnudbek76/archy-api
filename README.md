@@ -33,6 +33,7 @@ Use the same hostname (`localhost` or `127.0.0.1`) consistently for browser requ
 - Private PostgreSQL schema with separate migration and runtime roles.
 - UUID accounts, case-insensitive email uniqueness, protected course ownership.
 - Signup, email confirmation, session login/logout, password recovery and current user.
+- Private course creation, paginated listing, renaming and archiving.
 - Explicit CSRF protection, password validation and application admission limits.
 - Django staff administration, sanitized API errors and request IDs.
 - Integration tests against disposable PostgreSQL and GitHub Actions checks.
@@ -43,7 +44,7 @@ Use the same hostname (`localhost` or `127.0.0.1`) consistently for browser requ
 config/             Environment, Django settings and application URLs
 apps/core/          Health checks, errors and request middleware
 apps/accounts/      Accounts, authentication workflows and administration
-apps/courses/       Course persistence and administration
+apps/courses/       Course models, HTTP contracts, workflows and administration
 scripts/            Database bootstrap and migration tools
 tests/             Configuration and database boundary checks
 ```
@@ -66,9 +67,11 @@ Local verification also covered PostgreSQL 18 and hosted PostgreSQL over verifie
 
 ## Next work
 
-The existing Next.js frontend is separate. Health remains compatible; its authentication screens
-and cookie/CSRF integration are next. Course HTTP endpoints, uploads, study processing and
-public deployment follow. Local email links are written privately under `.local/mail`; their
-frontend pages are not implemented by this backend. Configure SMTP before delivering real email.
+The separate Next.js frontend implements account screens and course management through
+same-origin session/CSRF transport. Uploads, study processing and public deployment follow.
+Local email links are written privately under `.local/mail`; the frontend provides confirmation
+and reset pages. Configure SMTP before delivering real email.
 
 [Authentication contracts](docs/authentication.md) · [Verification](docs/verification.md)
+
+[Course contracts](docs/courses.md)

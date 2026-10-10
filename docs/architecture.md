@@ -5,16 +5,17 @@ its persistence and HTTP contracts. A single deployable backend keeps transactio
 simple while preserving boundaries for future features.
 
 ```text
-Next.js → HTTP views → serializers → account services → Django ORM → PostgreSQL
+Next.js → HTTP views → serializers → feature services → Django ORM → PostgreSQL
                                   ↘ Django auth, sessions and email
 ```
 
 Views select status codes and permissions. Serializers validate input and expose explicit fields.
-Account services coordinate confirmation and recovery transactions. Database constraints protect
+Feature services coordinate account and course transactions. Database constraints protect
 invariants even when writes come from administration or concurrent requests.
 
 `config` handles validated environment, deployment policy and URL composition. `core` provides
-health and safe error formatting. `accounts` owns identity; `courses` owns course persistence.
+health, strict input validation and safe error formatting. `accounts` owns identity; `courses`
+owns persistence and owner-scoped create, list, rename and archive workflows.
 Django administration is a restricted staff interface. No generic repository layer is needed
 because Django already supplies an ORM and transaction boundaries.
 
@@ -45,5 +46,5 @@ Production settings enable secure cookies, redirects and HSTS. Do not trust arbi
 headers; terminate TLS at a server whose forwarding policy is explicitly configured.
 
 Before public deployment: configure SMTP, a shared cache and edge admission limits, observability,
-a production WSGI/ASGI server, static file serving, backups and frontend authentication integration.
+a production WSGI/ASGI server, static file serving and backups.
 Current local throttles are approximate per-process admission controls, not a distributed security boundary.
