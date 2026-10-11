@@ -1,5 +1,15 @@
 from django.http import JsonResponse
+from rest_framework.exceptions import APIException
 from rest_framework.views import exception_handler as drf_exception_handler
+
+
+class ClientError(APIException):
+    def __init__(self, status, code, message):
+        self.status_code = status
+        self.public_code = code
+        self.public_message = message
+        super().__init__(message)
+
 
 MESSAGES = {
     400: ("invalid_request", "Check the request fields."),
@@ -26,6 +36,10 @@ def exception_handler(exc, context):
     status = response.status_code if response is not None else 500
     if response is None:
         return error_response(context["request"], status)
-    code, message = MESSAGES.get(status, MESSAGES[500])
+    code, message = (
+        (exc.public_code, exc.public_message)
+        if isinstance(exc, ClientError)
+        else MESSAGES.get(status, MESSAGES[500])
+    )
     response.data = {"code": code, "message": message, "requestId": context["request"].request_id}
     return response

@@ -102,5 +102,10 @@ LOGGING = {
     },
 }
 
-INSTALLED_APPS += ["apps.accounts", "apps.courses"]
+INSTALLED_APPS += ["apps.accounts", "apps.courses", "apps.recordings"]
 AUTH_USER_MODEL = "accounts.User"
+
+RECORDING_STORAGE_ROOT = Path(
+    os.environ.get("RECORDING_STORAGE_ROOT", BASE_DIR / ".local" / "media")
+).resolve()
+DATA_UPLOAD_MAX_MEMORY_SIZE = 4 * 1024 * 1024

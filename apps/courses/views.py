@@ -1,24 +1,11 @@
 from rest_framework.exceptions import ValidationError
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.pagination import WorkspacePagination
 from apps.core.serializers import StrictSerializer
 from apps.courses import serializers, services
 from apps.courses.models import Course
-
-
-class CoursePagination(PageNumberPagination):
-    page_size = 20
-
-    def get_paginated_response(self, data):
-        return Response(
-            {
-                "items": data,
-                "total": self.page.paginator.count,
-                "nextPage": self.page.next_page_number() if self.page.has_next() else None,
-            }
-        )
 
 
 class CoursesView(APIView):
@@ -37,7 +24,7 @@ class CoursesView(APIView):
         courses = Course.objects.filter(
             owner=request.user, archived_at__isnull=query.get("archived") != "true"
         ).order_by("-created_at", "-id")
-        pagination = CoursePagination()
+        pagination = WorkspacePagination()
         page = pagination.paginate_queryset(courses, request)
         return pagination.get_paginated_response(serializers.CourseSerializer(page, many=True).data)
 

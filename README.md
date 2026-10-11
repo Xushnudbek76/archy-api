@@ -34,6 +34,7 @@ Use the same hostname (`localhost` or `127.0.0.1`) consistently for browser requ
 - UUID accounts, case-insensitive email uniqueness, protected course ownership.
 - Signup, email confirmation, session login/logout, password recovery and current user.
 - Private course creation, paginated listing, renaming and archiving.
+- Resumable private audio uploads, metadata validation and range playback without a duration cap.
 - Explicit CSRF protection, password validation and application admission limits.
 - Django staff administration, sanitized API errors and request IDs.
 - Integration tests against disposable PostgreSQL and GitHub Actions checks.
@@ -45,6 +46,7 @@ config/             Environment, Django settings and application URLs
 apps/core/          Health checks, errors and request middleware
 apps/accounts/      Accounts, authentication workflows and administration
 apps/courses/       Course models, HTTP contracts, workflows and administration
+apps/recordings/    Uploads, private disk storage, audio validation and playback
 scripts/            Database bootstrap and migration tools
 tests/             Configuration and database boundary checks
 ```
@@ -68,10 +70,13 @@ Local verification also covered PostgreSQL 18 and hosted PostgreSQL over verifie
 ## Next work
 
 The separate Next.js frontend implements account screens and course management through
-same-origin session/CSRF transport. Uploads, study processing and public deployment follow.
+same-origin session/CSRF transport. Recordings use private server disk storage; study processing
+and public deployment follow.
 Local email links are written privately under `.local/mail`; the frontend provides confirmation
 and reset pages. Configure SMTP before delivering real email.
 
 [Authentication contracts](docs/authentication.md) · [Verification](docs/verification.md)
 
 [Course contracts](docs/courses.md)
+
+[Recording contracts and storage](docs/recordings.md)

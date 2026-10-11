@@ -10,7 +10,7 @@ Next.js → HTTP views → serializers → feature services → Django ORM → P
 ```
 
 Views select status codes and permissions. Serializers validate input and expose explicit fields.
-Feature services coordinate account and course transactions. Database constraints protect
+Feature services coordinate account, course and recording transactions. Database constraints protect
 invariants even when writes come from administration or concurrent requests.
 
 `config` handles validated environment, deployment policy and URL composition. `core` provides
@@ -46,5 +46,13 @@ Production settings enable secure cookies, redirects and HSTS. Do not trust arbi
 headers; terminate TLS at a server whose forwarding policy is explicitly configured.
 
 Before public deployment: configure SMTP, a shared cache and edge admission limits, observability,
-a production WSGI/ASGI server, static file serving and backups.
+a production WSGI server, static file serving and backups.
 Current local throttles are approximate per-process admission controls, not a distributed security boundary.
+
+## Recording boundary
+
+`recordings` owns upload state, course-scoped metadata, audio validation and private playback.
+Its storage module handles disk paths and atomic file operations; PostgreSQL holds ownership
+and confirmed offsets. The frontend transfers bounded chunks and streams playback through
+fixed same-origin routes. No public file directory or credential-bearing playback URL is used.
+See [recording storage](recordings.md) for persistent-volume and WSGI deployment requirements.
