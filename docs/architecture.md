@@ -1,58 +1,13 @@
 # Architecture
 
-Archy uses a modular Django application with a separate Next.js frontend. Each feature app owns
-its persistence and HTTP contracts. A single deployable backend keeps transactions and development
-simple while preserving boundaries for future features.
+The Next.js frontend handles presentation and same-origin cookie transport. FastAPI owns authentication, courses, recording uploads and private playback. PostgreSQL persists state; private disk storage holds audio bytes.
 
-```text
-Next.js → HTTP views → serializers → feature services → Django ORM → PostgreSQL
-                                  ↘ Django auth, sessions and email
-```
+`app/components` groups accounts, courses and recordings. Each feature has a router, strict input/output schemas, persistence models and small workflow services. `app/libs` contains settings, security, mail, request limits and shared HTTP behavior. `app/database` owns the synchronous engine and session factory. Alembic revisions run through guarded commands, never API startup.
 
-Views select status codes and permissions. Serializers validate input and expose explicit fields.
-Feature services coordinate account, course and recording transactions. Database constraints protect
-invariants even when writes come from administration or concurrent requests.
+Synchronous routes run database work in the bounded AnyIO worker pool. Async chunk and playback routes call complete worker units for authorization and persistence; each unit closes its session before returning immutable metadata. Chunk reception and network streaming occupy neither a connection nor a worker while awaiting client data. Playback reads at most 64 KiB at a time.
 
-`config` handles validated environment, deployment policy and URL composition. `core` provides
-health, strict input validation and safe error formatting. `accounts` owns identity; `courses`
-owns persistence and owner-scoped create, list, rename and archive workflows.
-Django administration is a restricted staff interface. No generic repository layer is needed
-because Django already supplies an ORM and transaction boundaries.
+Each worker has 40 AnyIO thread tokens and a PostgreSQL pool of five connections, zero overflow and a two-second checkout timeout. Connection establishment has its own five-second limit, and database statement/lock timeouts are five seconds. These are separate bounds, not a two-second total request deadline. Start one Uvicorn worker and reserve two additional database connections for administration/migrations. The configured connection budget must cover `workers * 5 + 2`.
 
-## Database boundary
+Four receiving chunk requests are admitted per process. A fifth authorized request receives 429 and Retry-After: 2 before body reads. The frontend retries the same offset and bytes at most three times. Other errors pause for explicit resume; completion requests are not automatically repeated.
 
-All application tables, including sessions and Django metadata, live in private schema `archy`.
-The migration role owns this namespace. The API uses a separate role with table DML and sequence
-usage; it cannot create application objects or read migration history. Migration commands refresh
-runtime grants after schema changes. Bootstrap refuses existing namespace/role names.
-
-Hosted connections require certificate and hostname verification. Connection, statement and lock
-waits are bounded. Credential files, virtual environments, local emails and scratch files are ignored.
-
-## Identity boundary
-
-Django passwords and persisted sessions are authoritative. Public input cannot set account
-permissions. Staff role is derived from the current database row on each request. Email confirmation
-uses a separate pending signup attempt so the confirmed link selects its own credentials. Provisioned
-or previously confirmed disabled accounts cannot re-enter signup. Confirmation records completion and
-discards pending attempts, preventing replay.
-Password-reset tokens are validated under a row lock and become invalid after the password changes.
-Existing sessions lose authorization through Django's password-authentication hash check.
-
-## Deployment boundary
-
-Run behind HTTPS with explicit hosts and a same-site frontend or same-origin session proxy.
-Production settings enable secure cookies, redirects and HSTS. Do not trust arbitrary forwarded
-headers; terminate TLS at a server whose forwarding policy is explicitly configured.
-
-Before public deployment: configure SMTP, a shared cache and edge admission limits, observability,
-a production WSGI server, static file serving and backups.
-Current local throttles are approximate per-process admission controls, not a distributed security boundary.
-
-## Recording boundary
-
-`recordings` owns upload state, course-scoped metadata, audio validation and private playback.
-Its storage module handles disk paths and atomic file operations; PostgreSQL holds ownership
-and confirmed offsets. The frontend transfers bounded chunks and streams playback through
-fixed same-origin routes. No public file directory or credential-bearing playback URL is used.
-See [recording storage](recordings.md) for persistent-volume and WSGI deployment requirements.
+The API generates request IDs, logs route templates rather than URLs, hides SQL parameters and returns safe errors. It never logs request bodies, passwords, cookies, tokens or exception messages. A response-stream failure closes the response and logs sanitized diagnostics without appending JSON to audio.

@@ -5,7 +5,8 @@ requires-python = ">=3.13,<3.14"
 description = "Archy learning workspace API"
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "apps"]
+testpaths = ["tests"]
+norecursedirs = ["legacy"]
 addopts = "-q"
 
 [tool.ruff]

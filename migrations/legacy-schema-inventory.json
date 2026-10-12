@@ -1,0 +1,601 @@
+{
+  "columns": [
+    {
+      "table_name": "accounts_signupattempt",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "accounts_signupattempt",
+      "column_name": "password_hash",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 128
+    },
+    {
+      "table_name": "accounts_signupattempt",
+      "column_name": "display_name",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 100
+    },
+    {
+      "table_name": "accounts_signupattempt",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "accounts_signupattempt",
+      "column_name": "user_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "password",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 128
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "last_login",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "is_superuser",
+      "data_type": "boolean",
+      "udt_name": "bool",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "email",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 254
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "display_name",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 100
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "is_active",
+      "data_type": "boolean",
+      "udt_name": "bool",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "is_staff",
+      "data_type": "boolean",
+      "udt_name": "bool",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "accounts_user",
+      "column_name": "email_confirmed_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "courses_course",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "courses_course",
+      "column_name": "title",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 100
+    },
+    {
+      "table_name": "courses_course",
+      "column_name": "archived_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "courses_course",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "courses_course",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "courses_course",
+      "column_name": "owner_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_recording",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_recording",
+      "column_name": "title",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 100
+    },
+    {
+      "table_name": "recordings_recording",
+      "column_name": "size_bytes",
+      "data_type": "bigint",
+      "udt_name": "int8",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_recording",
+      "column_name": "sha256",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 64
+    },
+    {
+      "table_name": "recordings_recording",
+      "column_name": "content_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 32
+    },
+    {
+      "table_name": "recordings_recording",
+      "column_name": "duration_seconds",
+      "data_type": "double precision",
+      "udt_name": "float8",
+      "is_nullable": "YES",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_recording",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_recording",
+      "column_name": "course_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_recording",
+      "column_name": "upload_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "title",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 100
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "file_name",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 255
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "size_bytes",
+      "data_type": "bigint",
+      "udt_name": "int8",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "uploaded_bytes",
+      "data_type": "bigint",
+      "udt_name": "int8",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "sha256",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 64
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "status",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 12
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "error_code",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": 32
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    },
+    {
+      "table_name": "recordings_upload",
+      "column_name": "course_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "character_maximum_length": null
+    }
+  ],
+  "indexes": [
+    {
+      "tablename": "accounts_signupattempt",
+      "indexname": "accounts_signupattempt_pkey",
+      "indexdef": "CREATE UNIQUE INDEX accounts_signupattempt_pkey ON archy.accounts_signupattempt USING btree (id)"
+    },
+    {
+      "tablename": "accounts_signupattempt",
+      "indexname": "accounts_signupattempt_user_id_58cd6f0b",
+      "indexdef": "CREATE INDEX accounts_signupattempt_user_id_58cd6f0b ON archy.accounts_signupattempt USING btree (user_id)"
+    },
+    {
+      "tablename": "accounts_user",
+      "indexname": "accounts_user_email_b2644a56_like",
+      "indexdef": "CREATE INDEX accounts_user_email_b2644a56_like ON archy.accounts_user USING btree (email varchar_pattern_ops)"
+    },
+    {
+      "tablename": "accounts_user",
+      "indexname": "accounts_user_email_key",
+      "indexdef": "CREATE UNIQUE INDEX accounts_user_email_key ON archy.accounts_user USING btree (email)"
+    },
+    {
+      "tablename": "accounts_user",
+      "indexname": "accounts_user_pkey",
+      "indexdef": "CREATE UNIQUE INDEX accounts_user_pkey ON archy.accounts_user USING btree (id)"
+    },
+    {
+      "tablename": "accounts_user",
+      "indexname": "user_email_case_unique",
+      "indexdef": "CREATE UNIQUE INDEX user_email_case_unique ON archy.accounts_user USING btree (lower((email)::text))"
+    },
+    {
+      "tablename": "courses_course",
+      "indexname": "courses_course_owner_id_97a468c6",
+      "indexdef": "CREATE INDEX courses_course_owner_id_97a468c6 ON archy.courses_course USING btree (owner_id)"
+    },
+    {
+      "tablename": "courses_course",
+      "indexname": "courses_course_pkey",
+      "indexdef": "CREATE UNIQUE INDEX courses_course_pkey ON archy.courses_course USING btree (id)"
+    },
+    {
+      "tablename": "recordings_recording",
+      "indexname": "recordings__course__41d681_idx",
+      "indexdef": "CREATE INDEX recordings__course__41d681_idx ON archy.recordings_recording USING btree (course_id, created_at DESC)"
+    },
+    {
+      "tablename": "recordings_recording",
+      "indexname": "recordings_recording_course_id_e8867e2e",
+      "indexdef": "CREATE INDEX recordings_recording_course_id_e8867e2e ON archy.recordings_recording USING btree (course_id)"
+    },
+    {
+      "tablename": "recordings_recording",
+      "indexname": "recordings_recording_pkey",
+      "indexdef": "CREATE UNIQUE INDEX recordings_recording_pkey ON archy.recordings_recording USING btree (id)"
+    },
+    {
+      "tablename": "recordings_recording",
+      "indexname": "recordings_recording_upload_id_key",
+      "indexdef": "CREATE UNIQUE INDEX recordings_recording_upload_id_key ON archy.recordings_recording USING btree (upload_id)"
+    },
+    {
+      "tablename": "recordings_upload",
+      "indexname": "recordings__course__619b85_idx",
+      "indexdef": "CREATE INDEX recordings__course__619b85_idx ON archy.recordings_upload USING btree (course_id, status, created_at DESC)"
+    },
+    {
+      "tablename": "recordings_upload",
+      "indexname": "recordings_upload_course_id_13a40453",
+      "indexdef": "CREATE INDEX recordings_upload_course_id_13a40453 ON archy.recordings_upload USING btree (course_id)"
+    },
+    {
+      "tablename": "recordings_upload",
+      "indexname": "recordings_upload_pkey",
+      "indexdef": "CREATE UNIQUE INDEX recordings_upload_pkey ON archy.recordings_upload USING btree (id)"
+    }
+  ],
+  "constraints": [
+    {
+      "table_name": "accounts_signupattempt",
+      "name": "accounts_signupattempt_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "accounts_signupattempt",
+      "name": "accounts_signupattempt_user_id_58cd6f0b_fk_accounts_user_id",
+      "definition": "FOREIGN KEY (user_id) REFERENCES accounts_user(id) DEFERRABLE INITIALLY DEFERRED",
+      "condeferrable": true,
+      "condeferred": true
+    },
+    {
+      "table_name": "accounts_user",
+      "name": "accounts_user_email_key",
+      "definition": "UNIQUE (email)",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "accounts_user",
+      "name": "accounts_user_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "courses_course",
+      "name": "course_title_valid",
+      "definition": "CHECK (((length(TRIM(BOTH FROM title)) > 0) AND (length((title)::text) <= 100) AND ((title)::text = TRIM(BOTH FROM title))))",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "courses_course",
+      "name": "courses_course_owner_id_97a468c6_fk_accounts_user_id",
+      "definition": "FOREIGN KEY (owner_id) REFERENCES accounts_user(id) DEFERRABLE INITIALLY DEFERRED",
+      "condeferrable": true,
+      "condeferred": true
+    },
+    {
+      "table_name": "courses_course",
+      "name": "courses_course_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "recordings_recording",
+      "name": "recordings_recording_course_id_e8867e2e_fk_courses_course_id",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses_course(id) DEFERRABLE INITIALLY DEFERRED",
+      "condeferrable": true,
+      "condeferred": true
+    },
+    {
+      "table_name": "recordings_recording",
+      "name": "recordings_recording_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "recordings_recording",
+      "name": "recordings_recording_size_bytes_check",
+      "definition": "CHECK ((size_bytes >= 0))",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "recordings_recording",
+      "name": "recordings_recording_upload_id_6cab6225_fk_recordings_upload_id",
+      "definition": "FOREIGN KEY (upload_id) REFERENCES recordings_upload(id) DEFERRABLE INITIALLY DEFERRED",
+      "condeferrable": true,
+      "condeferred": true
+    },
+    {
+      "table_name": "recordings_recording",
+      "name": "recordings_recording_upload_id_key",
+      "definition": "UNIQUE (upload_id)",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "recordings_upload",
+      "name": "recordings_upload_course_id_13a40453_fk_courses_course_id",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses_course(id) DEFERRABLE INITIALLY DEFERRED",
+      "condeferrable": true,
+      "condeferred": true
+    },
+    {
+      "table_name": "recordings_upload",
+      "name": "recordings_upload_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "recordings_upload",
+      "name": "recordings_upload_size_bytes_check",
+      "definition": "CHECK ((size_bytes >= 0))",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "recordings_upload",
+      "name": "recordings_upload_uploaded_bytes_check",
+      "definition": "CHECK ((uploaded_bytes >= 0))",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "recordings_upload",
+      "name": "upload_offset_valid",
+      "definition": "CHECK ((uploaded_bytes <= size_bytes))",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "recordings_upload",
+      "name": "upload_size_valid",
+      "definition": "CHECK (((size_bytes > 0) AND (size_bytes <= '9007199254740991'::bigint)))",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "recordings_upload",
+      "name": "upload_status_valid",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['UPLOADING'::character varying, 'ACCEPTED'::character varying, 'FAILED'::character varying, 'CANCELLED'::character varying])::text[])))",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "recordings_upload",
+      "name": "upload_title_valid",
+      "definition": "CHECK (((length(TRIM(BOTH FROM title)) > 0) AND (length((title)::text) <= 100) AND ((title)::text = TRIM(BOTH FROM title))))",
+      "condeferrable": false,
+      "condeferred": false
+    }
+  ]
+}

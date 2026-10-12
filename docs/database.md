@@ -1,84 +1,24 @@
-# Database setup
+# Database
 
-The API uses PostgreSQL directly through Django ORM and psycopg. Supabase can host PostgreSQL;
-Supabase Auth is not part of this application's identity model.
+Use PostgreSQL with the dedicated `archy` schema. Runtime credentials identify `archy_api_runtime`; migrations identify `archy_api_migrator`. Bootstrap credentials prepare only an unused namespace and independent roles. The bootstrap command refuses an existing namespace or role; it does not reset an existing database.
 
-## Bootstrap once
-
-Create `.env.bootstrap` with these keys and restrict it to your user (`chmod 600 .env.bootstrap`):
-
-```dotenv
-BOOTSTRAP_DATABASE_URL=postgresql://postgres:ADMIN_PASSWORD@HOST:5432/DATABASE
-MIGRATION_DATABASE_PASSWORD=INDEPENDENT_RANDOM_PASSWORD_AT_LEAST_32_CHARACTERS
-RUNTIME_DATABASE_PASSWORD=ANOTHER_RANDOM_PASSWORD_AT_LEAST_32_CHARACTERS
-```
-
-For the Supabase session pooler use usernames `postgres.PROJECT_REF`,
-`archy_api_migrator.PROJECT_REF` and `archy_api_runtime.PROJECT_REF`. Append
-`?sslmode=verify-full&sslrootcert=ABSOLUTE_URL_ENCODED_CA_PATH` to hosted URLs.
-Obtain the CA through the project's database settings. Direct IPv6-only connections may be
-unreachable locally; the session pooler on port 5432 supports persistent Django sessions.
+Copy `.env.migrations.example` into a private `.env.migrations` file and set the migration URL. Hosted URLs use the project-specific pooler username, `sslmode=verify-full` and an existing `sslrootcert` file. Use direct PostgreSQL or the Supabase session pooler. Untrusted query options and privilege-changing URL parameters are rejected.
 
 ```sh
-python -m scripts.bootstrap_db
+.venv-fastapi/bin/python -m scripts.bootstrap_db --env .env.bootstrap
+.venv-fastapi/bin/python -m scripts.migrate_db .env.migrations
 ```
 
-The tool creates only new `archy` schema and `archy_api_migrator`/`archy_api_runtime` roles.
-It refuses existing names and never rotates passwords or changes another application's tables.
-The administrator retains membership in the migration role for namespace management.
+The migration tool compares every managed legacy column, constraint and index—including varchar_pattern_ops—before stamping the baseline. A mismatch stops adoption; it is not hidden by autogeneration. A fresh, bootstrapped namespace receives the baseline directly. The next revisions add opaque sessions/action tokens and the nullable upload duration snapshot. Inventory checks recognize only that exact additional column and positive-limit constraint as a pair. Existing domain IDs, password bytes, rows and files remain intact.
 
-## Migrate
+The ORM maps only the five original domain tables and the new auth tables. Unrelated framework tables remain in PostgreSQL outside Alembic management. Runtime grants cover only managed tables, never DDL or migration/framework history. Migration commands use a single NullPool connection and refresh the explicit grants.
 
-Create a private `.env.migrations` with `DATABASE_URL` for `archy_api_migrator` and
-`DJANGO_SECRET_KEY` matching the application. Keep `.env` runtime-only.
+PostgreSQL reflection treats the current search-path schema as implicit. Alembic comparison tests use public as the comparison path/default schema while models explicitly name archy. Runtime sessions use search_path=archy. Independent metadata comparison verifies the actual constraints and indexes in either case.
 
-```sh
-chmod 600 .env .env.migrations
-python -m scripts.migrate_db
-```
+## Connection budget
 
-The migration command loads migration credentials and applies migrations before refreshing
-explicit runtime grants. Migration history is excluded from runtime access. Use this command
-after every schema change. Do not run `manage.py migrate` with runtime credentials.
+One application worker uses at most five connections. Reserve two for administration/migrations and keep external headroom. Increasing workers requires reviewing both PostgreSQL and the provider session-pool size; the configured budget must cover `workers * 5 + 2`.
 
-To generate migrations, provide the migration role's environment to the management command;
-never copy privileged credentials into the API's runtime `.env`. Do not commit credentials,
-certificates or data dumps.
+Inspection on 2026-10-12 confirmed hosted max_connections=60, three superuser-reserved connections, an unlimited runtime role and ten current connections before cutover. The user confirmed the shared session pool size is 15 per user/database, with 200 maximum clients. One runtime worker uses five connections, with two reserved for migration/administration, leaving external headroom. Client TLS uses verify-full and the configured CA. The framework cutover passed with this budget.
 
-## Tests
-
-Use a disposable PostgreSQL database named exactly `archy_api_test` on a loopback host.
-CI demonstrates PostgreSQL 17 setup. If Docker is available:
-
-```sh
-docker run --name archy-test-db -e POSTGRES_PASSWORD=local-admin-fixture-password-12345 \
-  -e POSTGRES_DB=archy_api_test -p 127.0.0.1:5433:5432 -d postgres:17
-cp .env.test.example .env.test
-chmod 600 .env.test
-```
-
-Set the three URLs in `.env.test` to this port/database, with distinct migration/runtime passwords
-of at least 32 characters. Bootstrap and migrate the test namespace once:
-
-```sh
-python - <<'PY'
-from dotenv import dotenv_values
-from urllib.parse import unquote, urlsplit
-from config.environment import validate_test_url
-from scripts.bootstrap_db import bootstrap
-fixtures = dotenv_values('.env.test')
-validate_test_url(fixtures['TEST_DATABASE_URL'])
-bootstrap(fixtures['TEST_DATABASE_URL'],
-          unquote(urlsplit(fixtures['TEST_MIGRATION_URL']).password),
-          unquote(urlsplit(fixtures['TEST_RUNTIME_URL']).password))
-PY
-```
-
-Create a private temporary migration env file for `TEST_MIGRATION_URL` and run
-`python -m scripts.migrate_db PATH_TO_TEST_MIGRATION_ENV`. Then run `pytest`.
-Tests validate all connections before Django initialization, use existing migrated test tables,
-and roll back data changes. Runtime privilege tests use the separate runtime role. Never point
-these URLs at development/production data; the guard rejects hosted targets and other database names.
-
-Native PostgreSQL works too; the application does not require Docker. Test servers are independent
-of the hosted development connection. Stop your disposable server when finished.
+Supabase distinguishes server connections, pool size and maximum pooler clients. See [connection management](https://supabase.com/docs/guides/database/connection-management) and [pooling limits](https://supabase.com/docs/guides/database/connecting-to-postgres/pooling-and-limits).

@@ -1,30 +1,21 @@
 import os
 import stat
+from dataclasses import replace
 
-from django.core.mail import send_mail
-
-from config import settings as application_settings
-
-
-def test_local_email_storage_is_private_even_with_permissive_umask(settings, tmp_path):
-    settings.EMAIL_BACKEND = application_settings.EMAIL_BACKEND
-    settings.EMAIL_FILE_PATH = tmp_path / "mail"
-    previous = os.umask(0)
-    try:
-        send_mail("Confirmation", "test bearer", "sender@example.com", ["owner@example.com"])
-    finally:
-        os.umask(previous)
-    assert stat.S_IMODE(settings.EMAIL_FILE_PATH.stat().st_mode) == 0o700
-    assert all(
-        stat.S_IMODE(path.stat().st_mode) == 0o600 for path in settings.EMAIL_FILE_PATH.iterdir()
-    )
+from app.libs.mail import MailMessage, deliver_mail
 
 
-def test_existing_mail_directory_is_restricted(settings, tmp_path):
-    directory = tmp_path / "mail"
+def test_local_email_storage_is_private_even_with_permissive_umask(settings):
+    directory = settings.mail_directory
     directory.mkdir(mode=0o777)
     directory.chmod(0o777)
-    settings.EMAIL_BACKEND = application_settings.EMAIL_BACKEND
-    settings.EMAIL_FILE_PATH = directory
-    send_mail("Confirmation", "test bearer", "sender@example.com", ["owner@example.com"])
+    previous = os.umask(0)
+    try:
+        deliver_mail(
+            MailMessage("synthetic@example.com", "Confirmation", "Synthetic bearer"),
+            replace(settings, mail_backend="file"),
+        )
+    finally:
+        os.umask(previous)
     assert stat.S_IMODE(directory.stat().st_mode) == 0o700
+    assert all(stat.S_IMODE(path.stat().st_mode) == 0o600 for path in directory.iterdir())

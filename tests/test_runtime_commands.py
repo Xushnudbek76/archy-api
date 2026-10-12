@@ -1,18 +1,14 @@
-from django.core.management import get_commands, load_command_class
+import importlib.metadata
+from pathlib import Path
 
 
-def test_runtime_development_server_skips_privileged_migration_query(monkeypatch):
-    command = load_command_class(get_commands()["runserver"], "runserver")
-
-    def forbidden(*args, **kwargs):
-        raise AssertionError("Runtime must not inspect migration history")
-
-    from django.db import connection
-
-    monkeypatch.setattr(connection, "cursor", forbidden)
-    command.check_migrations()
+def test_runtime_has_no_django_or_passlib():
+    names = {
+        distribution.metadata["Name"].lower() for distribution in importlib.metadata.distributions()
+    }
+    assert not {"django", "passlib", "djangorestframework", "pytest-django"} & names
 
 
-def test_staff_creation_does_not_require_migration_history():
-    command = load_command_class(get_commands()["createsuperuser"], "createsuperuser")
-    assert command.requires_migrations_checks is False
+def test_application_startup_does_not_run_migrations():
+    source = (Path(__file__).parents[1] / "app/main.py").read_text()
+    assert "alembic" not in source and "create_all" not in source

@@ -1,8 +1,10 @@
 .venv/
+.venv-fastapi/
 .env
 .env.*
 !.env.example
 !.env.test.example
+!.env.migrations.example
 .local/
 .superpowers/
 __pycache__/

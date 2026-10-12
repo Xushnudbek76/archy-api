@@ -1,0 +1,47 @@
+[
+  {
+    "password": "Synthetic-safe-passphrase-827!",
+    "iterations": 260000,
+    "encoded": "pbkdf2_sha256$260000$syntheticfixture$PG61TMZl4J4hejNXMEWRvt5NGbr568Xa17Pg/erdUZw="
+  },
+  {
+    "password": "Synthetic-safe-passphrase-827!",
+    "iterations": 600000,
+    "encoded": "pbkdf2_sha256$600000$syntheticfixture$6uMj1F962tDPLcJDcZFtE9r1HbjrDRnvvrn8qSWESaw="
+  },
+  {
+    "password": "Synthetic-safe-passphrase-827!",
+    "iterations": 1000000,
+    "encoded": "pbkdf2_sha256$1000000$syntheticfixture$jWo/HtliUu+Q4tCrm3K6UvIJN4YCUpwHRwZZkW9/pq8="
+  },
+  {
+    "password": "  synthetic whitespace  ",
+    "iterations": 260000,
+    "encoded": "pbkdf2_sha256$260000$syntheticfixture$yLkD0PISe2Df+z6Mhy1wLeWckIwWlhPLgsU/MCl0KFA="
+  },
+  {
+    "password": "  synthetic whitespace  ",
+    "iterations": 600000,
+    "encoded": "pbkdf2_sha256$600000$syntheticfixture$pl0XkLg7peJIvfDCjret419C/Uju0pOYOIUv7wQ1lWE="
+  },
+  {
+    "password": "  synthetic whitespace  ",
+    "iterations": 1000000,
+    "encoded": "pbkdf2_sha256$1000000$syntheticfixture$Rua37wawb2dY81nc7BOcLjKEMFKYBX+ej7HgWiLh1Co="
+  },
+  {
+    "password": "synthetic\ud55c\uae00\u00e9",
+    "iterations": 260000,
+    "encoded": "pbkdf2_sha256$260000$syntheticfixture$kKL9AXXF6d2lQi8Ii2T2wqmLJnQrL6VGK0Ek8ZmTtcc="
+  },
+  {
+    "password": "synthetic\ud55c\uae00\u00e9",
+    "iterations": 600000,
+    "encoded": "pbkdf2_sha256$600000$syntheticfixture$XhNRbDPqeSmvpCKJCmEdpgbtP1TIznEVzd/gm+5mj0A="
+  },
+  {
+    "password": "synthetic\ud55c\uae00\u00e9",
+    "iterations": 1000000,
+    "encoded": "pbkdf2_sha256$1000000$syntheticfixture$l7GTXqKABjMjlO77ekYu3kd7hmhEkJ9f0PEfBp1+HSU="
+  }
+]

@@ -2,23 +2,25 @@
 
 import argparse
 import sys
+from urllib.parse import unquote
 
 import psycopg
 from dotenv import dotenv_values
 from psycopg import sql
 
-from config.environment import database_configuration
+from app.libs.config import validate_database_url
 
 
 def connection_arguments(url, role):
-    db = database_configuration(url, role)
+    parsed, options = validate_database_url(url, role)
     return {
-        "dbname": db["NAME"],
-        "user": db["USER"],
-        "password": db["PASSWORD"],
-        "host": db["HOST"],
-        "port": db["PORT"],
-        **db["OPTIONS"],
+        "dbname": unquote(parsed.path[1:]),
+        "user": unquote(parsed.username),
+        "password": unquote(parsed.password),
+        "host": parsed.hostname,
+        "port": parsed.port or 5432,
+        "connect_timeout": 5,
+        **options,
     }
 
 

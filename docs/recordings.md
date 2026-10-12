@@ -1,49 +1,15 @@
 # Recordings
 
-Recordings belong to a course and inherit its account ownership. There is no audio duration
-limit or product file-size limit. Physical disk capacity still applies; admission checks for
-space to store the chunks and assembled file. This check is not a reservation across uploads.
+An upload admission contains a UUID, owned active course, title, plain file name, total size and SHA-256 checksum. Repeating the same admission returns the existing upload; conflicting metadata is rejected. Titles and file names are validated, while all storage paths derive from server-validated UUIDs.
 
-## HTTP contracts
+Chunks use PATCH `/v1/uploads/{id}/chunks`, application/octet-stream and Upload-Offset. A chunk is nonempty and at most 4 MiB. The offset advances only after a full body is received and an atomic part write is persisted under the upload row lock. Exact repeated chunks return the confirmed offset. Interrupted bodies leave it unchanged. If the caller disconnects during persistence, the worker finishes before its admission slot is released; resume reads the real committed offset.
 
-| Method | Path | Behavior |
-| --- | --- | --- |
-| GET | `/v1/uploads?page=1` | Owner's unfinished uploads, 20 per page |
-| POST | `/v1/uploads` | Admit an upload with a client UUID, courseId, title, fileName, sizeBytes and SHA-256 |
-| GET | `/v1/uploads/{id}` | Current persisted offset, status and recording if accepted |
-| PATCH | `/v1/uploads/{id}/chunks` | Binary chunk up to 4 MiB with `Upload-Offset` |
-| POST | `/v1/uploads/{id}/complete` | Verify bytes and audio, then save a recording |
-| POST | `/v1/uploads/{id}/cancel` | Discard an unfinished upload |
-| GET | `/v1/recordings?page=1` | Owner's saved recordings, 20 per page |
-| GET / HEAD | `/v1/recordings/{id}/audio` | Private playback with single byte-range support |
+Receiving requests have a resettable 15-second idle deadline and no total transfer deadline. JSON bodies have a 16 KiB cap. Declared oversized bodies are rejected before reading; streamed oversized bodies never accumulate beyond the cap. Four active receiving requests per worker bound retained chunk memory. The frontend retries transient 429 responses with bounded server-aware delays.
 
-Session authentication protects every endpoint. Writes also require CSRF. Foreign IDs return
-404. Repeated admission with identical metadata, repeated confirmed chunks and completion are
-idempotent. Changed metadata or an unexpected offset returns 409. Reselecting the original file
-allows the browser to verify its hash and resume from the server's confirmed offset.
+Completion assembles parts, verifies total size and checksum, validates the actual container and first decoded audio frame in a resource-limited subprocess, and atomically publishes the private file. It accepts WAV, MP3, M4A, FLAC, Ogg and WebM audio. File extensions do not determine the format. Existing assembled/published copies can be reused after interrupted completion. Cancellation removes temporary parts; accepted recordings remain private and persistent.
 
-PyAV checks the actual audio container and first decoded frame in a bounded subprocess.
-Supported containers are MP3, M4A, WAV, FLAC, Ogg and WebM. Duration can be unknown; the API
-returns null rather than rejecting it. This is an audio admission check, not a complete decode
-of every frame. Unsupported media and checksum mismatches end the upload with a safe error.
+Framework cutover preserves nullable duration metadata and existing long recordings. The separate duration migration adds a nullable per-upload snapshot without a database default or backfill. New admissions freeze `MAX_AUDIO_DURATION_SECONDS` (1200 by default, or 900 for 15 minutes). Changes affect new admissions only; older null snapshots and their files remain uncapped. GET `/v1/uploads/policy` returns the configured nominal limit to authenticated users, and upload responses include nullable `maxDurationSeconds`.
 
-## Private storage
+Completion checks server-derived duration against the saved limit with a fixed one-second tolerance. Missing or zero container duration falls back to bounded frame decoding and exact sample/rate accumulation. Decoding stops above the threshold and stays within the 20-second CPU/30-second wall probe budget. The real browser WebM/Opus fixture and remuxed 15/20-minute clips exercise this path. Reliable excess duration yields `audio_too_long`; failed measurement yields `duration_unavailable`. Both are terminal, remove temporary parts and require a fresh upload. No total file byte cap is added.
 
-`RECORDING_STORAGE_ROOT` defaults to `.local/media`. It must be a private directory on one
-persistent server volume, outside public/static media paths. Only generated UUIDs determine
-paths. Files use restrictive permissions; playback reads through owner-checked Django routes.
-Chunks are saved atomically before their database offset advances. Assembly streams the checksum
-with bounded memory. An interrupted completion reuses its existing assembled file, and saved
-recordings are published before their database transaction commits.
-
-Use a WSGI server for this version. Playback has a synchronous file iterator; ASGI deployment
-needs an async streaming adapter before it is supported for long recordings. Next forwards the
-stream and range headers without buffering the whole recording.
-
-Back up both PostgreSQL and the storage volume. Restarting the application preserves uploads;
-replacing the volume does not. Cancelled/completed upload parts are removed after commit.
-Abandoned uploads and files left by failed database commits need an operational cleanup job
-before public launch. There is currently no retention policy or automatic deletion.
-
-`LocalRecordingStorage` owns disk operations, keeping a later object-storage migration focused.
-Multiple backend replicas would need shared storage or a different storage implementation.
+Playback authorizes ownership before opening a private file and releases the database session before streaming. It uses private, no-store caching. A valid single byte range returns 206; malformed/unknown/overlong or satisfiable multiple ranges return the full 200 response. A valid wholly unsatisfiable range returns 416 with Content-Range. HEAD ignores Range and returns full length without a body. Reads are at most 65,536 bytes.
