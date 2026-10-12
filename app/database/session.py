@@ -19,10 +19,13 @@ def sqlalchemy_url(url, *, role="runtime", test=False):
     )
 
 
-def create_engine_for(settings):
+def create_engine_for(settings, *, worker=False):
+    from app.database.models import register_models
+
+    register_models()
     return create_engine(
         sqlalchemy_url(settings.database_url, test=settings.environment == "test"),
-        pool_size=5,
+        pool_size=2 if worker else 5,
         max_overflow=0,
         pool_timeout=2,
         pool_pre_ping=True,

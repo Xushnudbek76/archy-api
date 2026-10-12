@@ -73,6 +73,28 @@ def verify_legacy_schema(connection, inventory):
     if column in actual["columns"] and constraint in actual["constraints"]:
         actual["columns"].remove(column)
         actual["constraints"].remove(constraint)
+    # pg_restore distributes this array cast across its elements.
+    restored_status = {
+        "table_name": "recordings_upload",
+        "name": "upload_status_valid",
+        "definition": (
+            "CHECK (((status)::text = ANY (ARRAY[('UPLOADING'::character varying)::text, "
+            "('ACCEPTED'::character varying)::text, ('FAILED'::character varying)::text, "
+            "('CANCELLED'::character varying)::text])))"
+        ),
+        "condeferrable": False,
+        "condeferred": False,
+    }
+    if restored_status in actual["constraints"]:
+        position = actual["constraints"].index(restored_status)
+        actual["constraints"][position] = {
+            **restored_status,
+            "definition": (
+                "CHECK (((status)::text = ANY ((ARRAY['UPLOADING'::character varying, "
+                "'ACCEPTED'::character varying, 'FAILED'::character varying, "
+                "'CANCELLED'::character varying])::text[])))"
+            ),
+        }
     if actual != inventory:
         raise ValueError("Legacy schema does not match the reviewed inventory; adoption refused")
 

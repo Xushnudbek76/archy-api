@@ -57,3 +57,7 @@ Use trusted local commands to inspect or edit accounts and courses:
 Account creation and password changes prompt for passwords privately. Command arguments never contain passwords. Production requires HTTPS, secure cookies, verified database TLS, SMTP and ingress authentication limits. The peer-IP limiter is shared behind the Next.js proxy; it is not sufficient public brute-force protection.
 
 See [architecture](docs/architecture.md), [authentication](docs/authentication.md), [recordings](docs/recordings.md) and [migration](docs/migration.md).
+
+## Lecture notes
+
+New capped uploads enqueue durable processing jobs. A separate worker generates Korean/English transcripts and notes through Groq; it is disabled until privately configured. See [processing setup](docs/processing.md) for the worker, free-tier pacing, recovery and verification limits.

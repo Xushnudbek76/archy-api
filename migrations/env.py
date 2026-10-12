@@ -1,14 +1,9 @@
 from alembic import context
 
-from app.components.accounts.models import AccountSession, ActionToken, SignupAttempt, User
-from app.components.courses.models import Course
-from app.components.recordings.models import Recording, Upload
 from app.database.base import Base
+from app.database.models import register_models
 
-MANAGED_TABLES = {
-    model.__table__.name
-    for model in (User, SignupAttempt, AccountSession, ActionToken, Course, Upload, Recording)
-}
+MANAGED_TABLES = {model.__table__.name for model in register_models()}
 
 
 def include_object(obj, name, type_, reflected, compare_to):

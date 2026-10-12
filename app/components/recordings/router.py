@@ -98,7 +98,11 @@ def complete(
     session: SessionDep,
 ):
     upload = service.complete_upload(
-        session, identity.id, upload_id, request.app.state.settings.storage_root
+        session,
+        identity.id,
+        upload_id,
+        request.app.state.settings.storage_root,
+        request.app.state.settings.processing,
     )
     if upload.status == "FAILED":
         raise ApiError(400, upload.errorCode, service.ERRORS[upload.errorCode])

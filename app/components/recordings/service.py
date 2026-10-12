@@ -164,7 +164,7 @@ def receive_chunk(session, owner_id, key, offset, body, storage_root):
     return upload_response(session, upload)
 
 
-def complete_upload(session, owner_id, key, storage_root):
+def complete_upload(session, owner_id, key, storage_root, processing=None):
     upload = owned_upload(session, owner_id, key, locked=True)
     if upload.status in {"ACCEPTED", "FAILED"}:
         return upload_response(session, upload)
@@ -196,6 +196,9 @@ def complete_upload(session, owner_id, key, storage_root):
                     duration_seconds=media.duration_seconds,
                 )
             )
+            from app.components.processing.service import enqueue
+
+            enqueue(session, upload, processing)
             upload.status = "ACCEPTED"
         upload.updated_at = now()
         session.commit()

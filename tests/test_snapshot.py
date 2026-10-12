@@ -1,7 +1,9 @@
+import json
 import os
 import shutil
 import stat
 import subprocess
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -38,26 +40,39 @@ def test_snapshot_recovery_preserves_synthetic_ids_and_password_bytes(tmp_path, 
                     "password": password,
                 },
             )
+            connection.execute(
+                text(
+                    "INSERT INTO archy.accounts_actiontoken "
+                    "(id,user_id,digest,purpose,created_at,expires_at) "
+                    "VALUES (:id,:id,:digest,'reset',now(),now()+interval '1 day')"
+                ),
+                {"id": identifier, "digest": identifier.hex * 2},
+            )
         snapshot = snapshot_database(values["TEST_MIGRATION_URL"], tmp_path / "backup", pg_bin)
         assert stat.S_IMODE(snapshot.stat().st_mode) == 0o600
         assert stat.S_IMODE(snapshot.parent.stat().st_mode) == 0o700
-        with engine.begin() as connection:
-            tables = (
-                connection.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='archy'"))
-                .scalars()
-                .all()
-            )
-            names = ", ".join(
-                "archy." + connection.dialect.identifier_preparer.quote(name) for name in tables
-            )
-            connection.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
-        environment = postgres_environment(url, role="bootstrap", test=True)
+        entries = subprocess.check_output(
+            [postgres_tool("pg_restore", pg_bin), "--list", str(snapshot)], text=True
+        )
+        manifest = tmp_path / "restore.list"
+        # Keep the namespace; migration credentials have no database CREATE privilege.
+        manifest.write_text(
+            "\n".join(line for line in entries.splitlines() if " SCHEMA - archy " not in line)
+            + "\n"
+        )
+        manifest.chmod(0o600)
+        environment = postgres_environment(
+            values["TEST_MIGRATION_URL"], role="migration", test=True
+        )
         subprocess.run(
             [
                 postgres_tool("pg_restore", pg_bin),
                 "--dbname",
                 environment["PGDATABASE"],
-                "--data-only",
+                "--use-list",
+                str(manifest),
+                "--clean",
+                "--if-exists",
                 "--single-transaction",
                 "--no-owner",
                 "--no-privileges",
@@ -70,11 +85,27 @@ def test_snapshot_recovery_preserves_synthetic_ids_and_password_bytes(tmp_path, 
             check=True,
             timeout=60,
         )
+        from scripts.migrate_db import grant_runtime
+
+        with engine.begin() as connection:
+            grant_runtime(connection)
         with engine.connect() as connection:
+            from scripts.adopt_db import verify_legacy_schema
+
+            connection.execute(text("SET LOCAL search_path=archy"))
+            inventory = json.loads(
+                (Path(__file__).parents[1] / "migrations/legacy-schema-inventory.json").read_text()
+            )
+            verify_legacy_schema(connection, inventory)
             restored = connection.execute(
                 text("SELECT id,password FROM archy.accounts_user WHERE id=:id"), {"id": identifier}
             ).one()
             assert restored == (identifier, password)
+            token = connection.execute(
+                text("SELECT user_id,digest FROM archy.accounts_actiontoken WHERE id=:id"),
+                {"id": identifier},
+            ).one()
+            assert token == (identifier, identifier.hex * 2)
     finally:
         with engine.begin() as connection:
             connection.execute(

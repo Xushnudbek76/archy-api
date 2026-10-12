@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlsplit
 
+from app.components.processing.config import ProcessingSettings, load_processing
+
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 
@@ -57,6 +59,7 @@ class Settings:
     workers: int
     connection_budget: int
     max_audio_duration_seconds: int = 1200
+    processing: ProcessingSettings = field(default_factory=ProcessingSettings)
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = field(default="", repr=False)
@@ -86,6 +89,7 @@ def load_settings(values) -> Settings:
         budget = int(values.get("DATABASE_CONNECTION_BUDGET", "7"))
         mail = values.get("MAIL_BACKEND", "smtp" if production else "file")
         duration = int(values.get("MAX_AUDIO_DURATION_SECONDS", "1200"))
+        processing = load_processing(values, mode)
         if (
             mode not in {"development", "test", "production"}
             or len(secret) < 50
@@ -100,7 +104,7 @@ def load_settings(values) -> Settings:
             or parsed.path
             or (production and (parsed.scheme != "https" or secure != "true"))
             or workers < 1
-            or workers * 5 + 2 > budget
+            or workers * 5 + processing.workers * 2 + 2 > budget
             or not 0 < duration <= 2147483647
             or mail not in {"file", "memory", "smtp"}
             or (mode == "test" and mail == "smtp")
@@ -120,6 +124,7 @@ def load_settings(values) -> Settings:
             workers,
             budget,
             duration,
+            processing,
             values.get("SMTP_HOST", ""),
             int(values.get("SMTP_PORT", "587")),
             values.get("SMTP_USERNAME", ""),

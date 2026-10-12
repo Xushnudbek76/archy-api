@@ -11,3 +11,5 @@ Each worker has 40 AnyIO thread tokens and a PostgreSQL pool of five connections
 Four receiving chunk requests are admitted per process. A fifth authorized request receives 429 and Retry-After: 2 before body reads. The frontend retries the same offset and bytes at most three times. Other errors pause for explicit resume; completion requests are not automatically repeated.
 
 The API generates request IDs, logs route templates rather than URLs, hides SQL parameters and returns safe errors. It never logs request bodies, passwords, cookies, tokens or exception messages. A response-stream failure closes the response and logs sanitized diagnostics without appending JSON to audio.
+
+The processing component owns durable PostgreSQL jobs, transcripts and notes. One separate worker uses a two-connection pool, expiring leases and fenced writes; no connection is held during preparation/provider calls. Private disk audio is prepared through bounded PyAV subprocesses. Next.js reads saved status/results through its same-origin proxy. See [processing](processing.md).

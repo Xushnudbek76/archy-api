@@ -1,5 +1,6 @@
 import json
 import os
+from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
@@ -15,6 +16,31 @@ from scripts.adopt_db import verify_legacy_schema
 INVENTORY = json.loads(
     (Path(__file__).parents[2] / "migrations/legacy-schema-inventory.json").read_text()
 )
+
+
+@pytest.mark.parametrize("change", [None, "values", "name", "flags"])
+def test_restored_status_cast_accepts_only_the_equivalent_definition(monkeypatch, change):
+    actual = deepcopy(INVENTORY)
+    constraint = next(
+        item for item in actual["constraints"] if item["name"] == "upload_status_valid"
+    )
+    constraint["definition"] = (
+        "CHECK (((status)::text = ANY (ARRAY[('UPLOADING'::character varying)::text, "
+        "('ACCEPTED'::character varying)::text, ('FAILED'::character varying)::text, "
+        "('CANCELLED'::character varying)::text])))"
+    )
+    if change == "values":
+        constraint["definition"] = constraint["definition"].replace("CANCELLED", "EXTRA")
+    elif change == "name":
+        constraint["name"] = "different_status_check"
+    elif change == "flags":
+        constraint["condeferrable"] = True
+    monkeypatch.setattr("scripts.adopt_db.inspect_legacy_schema", lambda connection: actual)
+    if change is None:
+        verify_legacy_schema(None, INVENTORY)
+    else:
+        with pytest.raises(ValueError, match="schema"):
+            verify_legacy_schema(None, INVENTORY)
 
 
 def test_populated_adoption_preserves_rows_and_hashes(settings):
