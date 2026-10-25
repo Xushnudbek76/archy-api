@@ -186,3 +186,97 @@ def test_study_provider_quota_and_invalid_output_are_safe(monkeypatch):
     with pytest.raises(ApiError) as error:
         completion([], "en", NotesContent, "", ProcessingSettings(), time.monotonic() - 1)
     assert error.value.code == "study_timeout"
+
+
+def create_quiz(client, key, **changes):
+    data = {"language": "en", "questionType": "mixed", "questionCount": 5, **changes}
+    return post(client, f"/v1/documents/{key}/quizzes", data)
+
+
+def test_quizzes_persist_hidden_keys_and_strict_settings(api_client):
+    client = api_client
+    key = notes_document(client)
+    for data in [{"questionCount": 7}, {"questionType": "essay"}, {"language": "uz"}]:
+        assert create_quiz(client, key, **data).status_code == 400
+    response = create_quiz(client, key, language="ko")
+    assert response.status_code == 201
+    quiz = response.json()
+    assert len(quiz["questions"]) == 5 and quiz["documentId"] == key
+    assert {q["type"] for q in quiz["questions"]} == {"multiple_choice", "true_false"}
+    assert "correctAnswer" not in response.text and "explanation" not in response.text
+    assert client.get(f"/v1/quizzes/{quiz['id']}").json() == quiz
+    assert client.get(f"/v1/documents/{key}/quizzes").json()["items"] == [quiz]
+    assert post(client, f"/v1/documents/{key}/archive", {}).status_code == 200
+    assert client.get(f"/v1/quizzes/{quiz['id']}").status_code == 404
+    assert client.get(f"/v1/documents/{key}/quizzes").status_code == 404
+    assert create_quiz(client, key).status_code == 404
+
+
+def test_quizzes_reject_provider_count_type_and_citation_errors(api_client, monkeypatch):
+    from app.components.study import generation
+
+    client = api_client
+    key = notes_document(client)
+    actual = generation.generate_quiz
+
+    def invalid(sources, data, config):
+        content = actual(sources, data, config)
+        content["questions"][0]["sourceIds"] = ["pdf:forged"]
+        return content
+
+    monkeypatch.setattr(generation, "generate_quiz", invalid)
+    result = create_quiz(client, key)
+    assert result.status_code == 502
+    assert client.get(f"/v1/documents/{key}/quizzes").json() == {"items": []}
+
+    def wrong_count(sources, data, config):
+        content = actual(sources, data, config)
+        content["questions"].pop()
+        return content
+
+    monkeypatch.setattr(generation, "generate_quiz", wrong_count)
+    assert create_quiz(client, key).status_code == 502
+
+
+def test_quizzes_reject_changed_sources_and_oversized_material(api_client, monkeypatch):
+    from app.components.study import generation
+
+    client = api_client
+    key = notes_document(client)
+    actual = generation.generate_quiz
+
+    def changed(sources, data, config):
+        content = actual(sources, data, config)
+        with client.app.state.sessions() as session:
+            row = session.get(Document, UUID(key))
+            row.pages = ["Changed"]
+            session.commit()
+        return content
+
+    monkeypatch.setattr(generation, "generate_quiz", changed)
+    assert create_quiz(client, key).json()["code"] == "source_changed"
+    monkeypatch.setattr(generation, "generate_quiz", actual)
+    with client.app.state.sessions() as session:
+        row = session.get(Document, UUID(key))
+        row.pages = ["x" * 24001]
+        session.commit()
+    assert create_quiz(client, key).json()["code"] == "study_source_limit"
+
+
+def test_quiz_is_private_when_document_owner_changes(api_client):
+    from app.components.accounts.models import User
+    from app.libs.security import hash_password
+
+    client = api_client
+    key = notes_document(client)
+    quiz = create_quiz(client, key).json()
+    with client.app.state.sessions() as session:
+        user = User(email="other@example.com", password=hash_password("other"))
+        session.add(user)
+        session.flush()
+        row = session.get(Document, UUID(key))
+        row.owner_id = user.id
+        session.commit()
+    assert client.get(f"/v1/quizzes/{quiz['id']}").status_code == 404
+    assert client.get(f"/v1/documents/{key}/quizzes").status_code == 404
+    assert create_quiz(client, key).status_code == 404

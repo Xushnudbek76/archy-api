@@ -5,7 +5,7 @@ from dataclasses import replace
 from pydantic import ValidationError
 
 from app.components.processing.providers import GroqProvider, ProviderFailure
-from app.components.study.schemas import NotesContent
+from app.components.study.schemas import NotesContent, QuizContent
 from app.libs.errors import ApiError
 
 SOURCE_LIMIT_MESSAGE = (
@@ -162,3 +162,85 @@ def generate_notes(sources, language, config):
         "sections": [section for part in parts for section in part["sections"]],
     }
     return validate_content(combined, NotesContent, sources)
+
+
+def validate_quiz(content, sources, data):
+    result = validate_content(content, QuizContent, sources)
+    questions = result["questions"]
+    valid = len(questions) == data.questionCount
+    kinds = {question["type"] for question in questions}
+    if data.questionType == "mixed":
+        valid = valid and kinds == {"true_false", "multiple_choice"}
+    else:
+        valid = valid and kinds == {data.questionType}
+    for question in questions:
+        options = question["options"]
+        valid = valid and len(options) == (2 if question["type"] == "true_false" else 4)
+        valid = valid and question["correctAnswer"] < len(options)
+        valid = valid and len(set(options)) == len(options)
+        valid = valid and all(option.strip() and len(option) <= 600 for option in options)
+    if not valid:
+        raise ApiError(
+            502, "invalid_provider_output", "The provider returned invalid questions. Try again."
+        )
+    return result
+
+
+def generate_quiz(sources, data, config):
+    configured(config)
+    if sum(len(source["text"].encode()) for source in sources) > 24000:
+        raise source_limit()
+    if config.backend == "fixture":
+        questions = []
+        for index in range(data.questionCount):
+            source = sources[index % len(sources)]
+            kind = data.questionType
+            if kind == "mixed":
+                kind = "true_false" if index % 2 else "multiple_choice"
+            quote = source["text"][:160]
+            if kind == "true_false":
+                prompt = (
+                    "자료에 다음 내용이 있나요? "
+                    if data.language == "ko"
+                    else "Does the material contain: "
+                ) + quote
+                options = ["참", "거짓"] if data.language == "ko" else ["True", "False"]
+            else:
+                prompt = (
+                    "자료에 있는 내용은 무엇인가요?"
+                    if data.language == "ko"
+                    else "Which statement appears in the material?"
+                )
+                options = [
+                    quote,
+                    "Synthetic distractor A",
+                    "Synthetic distractor B",
+                    "Synthetic distractor C",
+                ]
+            questions.append(
+                {
+                    "type": kind,
+                    "prompt": f"{index + 1}. {prompt}",
+                    "options": options,
+                    "correctAnswer": 0,
+                    "explanation": "합성 테스트: " + quote
+                    if data.language == "ko"
+                    else "Synthetic fixture: " + quote,
+                    "sourceIds": [source["id"]],
+                }
+            )
+        content = {"questions": questions}
+    else:
+        content = completion(
+            sources,
+            data.language,
+            QuizContent,
+            f"Create exactly {data.questionCount} questions of type {data.questionType}. "
+            "Mixed must include both multiple_choice and true_false. "
+            "Use four distinct options for multiple_choice, two for true_false. "
+            "correctAnswer is the zero-based option index. Include a short explanation. "
+            "Make questions distinct and cover the supplied material.",
+            config,
+            time.monotonic() + 24,
+        )
+    return validate_quiz(content, sources, data)
