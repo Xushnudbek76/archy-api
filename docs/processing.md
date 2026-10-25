@@ -4,6 +4,8 @@ New accepted uploads with a non-null duration-policy snapshot enqueue one proces
 
 The API stores jobs; a separate worker prepares private audio, transcribes it with Groq `whisper-large-v3-turbo`, and summarizes with `openai/gpt-oss-120b`. Korean and English are supported. The predominant detected language determines the notes language. Unsupported languages fail processing while preserving the original audio.
 
+The processing feature has more files than the other components because queue leases, audio preparation, provider calls and summary budgeting have separate failure and recovery paths. Keeping these responsibilities separate leaves the HTTP router and result service small.
+
 ## Enable the worker
 
 The default provider is disabled outside tests. Set these values in the private backend `.env` after confirming the Groq account is on the Free plan:

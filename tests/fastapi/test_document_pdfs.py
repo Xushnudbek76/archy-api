@@ -13,7 +13,7 @@ from tests.fastapi.test_courses import signin
 from tests.fastapi.test_documents import other_user
 
 
-def pdf_bytes(text="Synthetic lecture text"):
+def pdf_bytes(text="Synthetic lecture text", padding=0):
     content = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET".encode()
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
@@ -25,16 +25,25 @@ def pdf_bytes(text="Synthetic lecture text"):
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
         b"<< /Length " + str(len(content)).encode() + b" >>\nstream\n" + content + b"\nendstream",
     ]
+    if padding:
+        objects.append(
+            b"<< /Length "
+            + str(padding).encode()
+            + b" >>\nstream\n"
+            + b"x" * padding
+            + b"\nendstream"
+        )
+    count = len(objects) + 1
     result = bytearray(b"%PDF-1.4\n")
     offsets = [0]
     for number, obj in enumerate(objects, 1):
         offsets.append(len(result))
         result.extend(f"{number} 0 obj\n".encode() + obj + b"\nendobj\n")
     start = len(result)
-    result.extend(b"xref\n0 6\n0000000000 65535 f \n")
+    result.extend(f"xref\n0 {count}\n0000000000 65535 f \n".encode())
     for offset in offsets[1:]:
         result.extend(f"{offset:010d} 00000 n \n".encode())
-    result.extend(f"trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n{start}\n%%EOF\n".encode())
+    result.extend(f"trailer\n<< /Size {count} /Root 1 0 R >>\nstartxref\n{start}\n%%EOF\n".encode())
     return bytes(result)
 
 
@@ -228,18 +237,13 @@ def test_pdf_unknown_length_accepts_exact_size_cap_and_archive_hides_blob(api_cl
     key = new_document(client)
     data = pdf_bytes()
     cap = 20 * 1024 * 1024
-    start = data.index(b"xref\n")
     padding = cap - len(data)
     while True:
-        adjusted = data.replace(
-            f"startxref\n{start}\n".encode(),
-            f"startxref\n{start + padding}\n".encode(),
-        )
-        next_padding = cap - len(adjusted)
-        if next_padding == padding:
+        data = pdf_bytes(padding=padding)
+        difference = cap - len(data)
+        if difference == 0:
             break
-        padding = next_padding
-    data = adjusted[:start] + b" " * (padding - 1) + b"\n" + adjusted[start:]
+        padding += difference
     response = upload(client, key, content=iter([data[:1024], data[1024:]]))
     assert response.status_code == 200 and response.json()["pdfSizeBytes"] == cap
     assert post(client, f"/v1/documents/{key}/archive", {}).status_code == 200

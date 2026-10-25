@@ -7,6 +7,7 @@ from starlette.datastructures import QueryParams
 from app.components.accounts.schemas import StrictInput
 from app.components.accounts.service import current_identity
 from app.components.documents import service
+from app.components.documents.extraction import extract_pdf
 from app.components.documents.pdf import MAX_PDF_BYTES, file_name, pdf_response, validate_pdf
 from app.components.documents.schemas import DocumentInput, DocumentPatch
 from app.libs.body import receive_body
@@ -73,6 +74,7 @@ async def upload_pdf(document_id: UUID, request: Request):
     try:
         body = await receive_body(request, MAX_PDF_BYTES)
         validate_pdf(body)
+        extracted = await run_worker(extract_pdf, body)
         return await run_worker(
             owned_unit,
             request,
@@ -80,6 +82,7 @@ async def upload_pdf(document_id: UUID, request: Request):
             document_id,
             body,
             name,
+            extracted,
             request.app.state.settings.storage_root,
         )
     finally:

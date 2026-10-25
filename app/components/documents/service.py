@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 
@@ -5,6 +7,7 @@ from app.components.accounts.models import now
 from app.components.courses.models import Course
 from app.components.documents.models import Document
 from app.components.documents.schemas import DocumentDetail, DocumentPage, DocumentResponse
+from app.components.documents.storage import DocumentStorage
 from app.components.recordings.models import Recording
 from app.libs.errors import ApiError
 from app.libs.pagination import PAGE_SIZE, page_response
@@ -145,9 +148,7 @@ def authorize_upload(session, owner_id, key):
     return document_response(document)
 
 
-def save_pdf(session, owner_id, key, body, file_name, storage_root):
-    from app.components.documents.storage import DocumentStorage
-
+def save_pdf(session, owner_id, key, body, file_name, extracted, storage_root):
     document = owned_document(session, owner_id, key, locked=True)
     if document.pdf_size_bytes is not None:
         raise ApiError(409, "pdf_exists", "This document already has a PDF.")
@@ -160,6 +161,8 @@ def save_pdf(session, owner_id, key, body, file_name, storage_root):
             try:
                 document.file_name = file_name
                 document.pdf_size_bytes = len(body)
+                document.page_count = extracted.page_count
+                document.text = extracted.text
                 document.updated_at = now()
                 session.commit()
             except BaseException:
@@ -173,15 +176,11 @@ def save_pdf(session, owner_id, key, body, file_name, storage_root):
 
 
 def authorize_pdf(session, owner_id, key, storage_root):
-    from app.components.documents.storage import DocumentStorage
-
     document = owned_document(session, owner_id, key)
     if document.pdf_size_bytes is None:
         raise ApiError(404)
     try:
         with DocumentStorage(storage_root) as storage:
-            import os
-
             os.close(storage.open(key, document.pdf_size_bytes))
     except OSError:
         raise ApiError(
