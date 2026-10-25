@@ -38,6 +38,7 @@ def create_app(settings):
     application.include_router(processing_router)
     application.include_router(recordings_router)
     application.state.chunk_limiter = anyio.CapacityLimiter(4)
+    application.state.pdf_limiter = anyio.CapacityLimiter(2)
     application.include_router(accounts_router)
     application.include_router(courses_router)
     application.state.outbox = []

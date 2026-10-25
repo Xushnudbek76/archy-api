@@ -136,3 +136,55 @@ def archive_document(session, owner_id, key):
         document.updated_at = document.archived_at
         session.commit()
     return document_response(document)
+
+
+def authorize_upload(session, owner_id, key):
+    document = owned_document(session, owner_id, key)
+    if document.pdf_size_bytes is not None:
+        raise ApiError(409, "pdf_exists", "This document already has a PDF.")
+    return document_response(document)
+
+
+def save_pdf(session, owner_id, key, body, file_name, storage_root):
+    from app.components.documents.storage import DocumentStorage
+
+    document = owned_document(session, owner_id, key, locked=True)
+    if document.pdf_size_bytes is not None:
+        raise ApiError(409, "pdf_exists", "This document already has a PDF.")
+    try:
+        with DocumentStorage(storage_root) as storage:
+            try:
+                storage.publish(key, body)
+            except FileExistsError:
+                raise ApiError(409, "pdf_exists", "This document already has a PDF.") from None
+            try:
+                document.file_name = file_name
+                document.pdf_size_bytes = len(body)
+                document.updated_at = now()
+                session.commit()
+            except BaseException:
+                storage.remove(key)
+                raise
+    except OSError:
+        raise ApiError(
+            503, "storage_unavailable", "PDF storage is temporarily unavailable."
+        ) from None
+    return document_response(document, detail=True)
+
+
+def authorize_pdf(session, owner_id, key, storage_root):
+    from app.components.documents.storage import DocumentStorage
+
+    document = owned_document(session, owner_id, key)
+    if document.pdf_size_bytes is None:
+        raise ApiError(404)
+    try:
+        with DocumentStorage(storage_root) as storage:
+            import os
+
+            os.close(storage.open(key, document.pdf_size_bytes))
+    except OSError:
+        raise ApiError(
+            503, "storage_unavailable", "PDF storage is temporarily unavailable."
+        ) from None
+    return storage_root, key, document.pdf_size_bytes, document.file_name

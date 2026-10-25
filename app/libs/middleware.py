@@ -1,3 +1,4 @@
+import re
 import time
 import uuid
 from urllib.parse import urlsplit
@@ -58,7 +59,11 @@ class RequestMiddleware:
             chunk_route = scope["path"].startswith("/v1/uploads/") and scope["path"].endswith(
                 "/chunks"
             )
-            if scope["method"] in {"POST", "PUT", "PATCH"} and not chunk_route:
+            pdf_route = scope["method"] == "POST" and re.fullmatch(
+                r"/v1/documents/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/pdf",
+                scope["path"],
+            )
+            if scope["method"] in {"POST", "PUT", "PATCH"} and not (chunk_route or pdf_route):
                 if (
                     headers.get(b"content-type", b"").split(b";")[0].strip().lower()
                     != b"application/json"
