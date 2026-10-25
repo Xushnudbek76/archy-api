@@ -36,3 +36,12 @@ class QuestionContent(StrictInput):
 
 class QuizContent(StrictInput):
     questions: list[QuestionContent] = Field(min_length=1, max_length=15)
+
+
+class QuestionAnswer(StrictInput):
+    questionId: str = Field(min_length=36, max_length=36)
+    answer: int = Field(ge=0, le=3)
+
+
+class AttemptInput(StrictInput):
+    answers: list[QuestionAnswer] = Field(min_length=1, max_length=15)

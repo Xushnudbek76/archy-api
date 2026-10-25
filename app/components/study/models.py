@@ -1,6 +1,15 @@
 import uuid
 
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, String, Uuid
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.components.accounts.models import now
@@ -29,3 +38,20 @@ class Quiz(Base):
     questions = Column(JSONB, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now)
     __table_args__ = (CheckConstraint("language IN ('en','ko')", name="language_valid"),)
+
+
+class Attempt(Base):
+    __tablename__ = "study_attempt"
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    quiz_id = Column(Uuid, ForeignKey("archy.study_quiz.id"), nullable=False)
+    answer_digest = Column(String(64), nullable=False)
+    score = Column(Integer, nullable=False)
+    total = Column(Integer, nullable=False)
+    results = Column(JSONB, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    __table_args__ = (
+        UniqueConstraint("quiz_id", "answer_digest"),
+        CheckConstraint(
+            "score >= 0 AND score <= total AND total BETWEEN 1 AND 15", name="score_valid"
+        ),
+    )

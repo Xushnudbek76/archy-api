@@ -1,13 +1,15 @@
+import hashlib
+import json
 from datetime import UTC
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.components.accounts.models import now
 from app.components.documents.service import owned_document
 from app.components.documents.sources import document_sources, source_revision
 from app.components.study.generation import validate_content, validate_quiz
-from app.components.study.models import Quiz, StudyNote
+from app.components.study.models import Attempt, Quiz, StudyNote
 from app.components.study.schemas import NotesContent
 from app.libs.errors import ApiError
 
@@ -124,3 +126,68 @@ def save_quiz(session, owner_id, document_id, revision, data, provider, content)
     session.add(quiz)
     session.commit()
     return quiz_response(quiz)
+
+
+def attempt_response(attempt):
+    return {
+        "id": attempt.id,
+        "quizId": attempt.quiz_id,
+        "score": attempt.score,
+        "total": attempt.total,
+        "results": attempt.results,
+        "createdAt": attempt.created_at.astimezone(UTC),
+    }
+
+
+def list_attempts(session, owner_id, quiz_id):
+    owned_quiz(session, owner_id, quiz_id)
+    rows = session.scalars(
+        select(Attempt)
+        .where(Attempt.quiz_id == quiz_id)
+        .order_by(Attempt.created_at.desc(), Attempt.id.desc())
+        .limit(100)
+    ).all()
+    return {"items": [attempt_response(row) for row in rows]}
+
+
+def save_attempt(session, owner_id, quiz_id, data):
+    quiz = owned_quiz(session, owner_id, quiz_id, locked=True)
+    answers = {answer.questionId: answer.answer for answer in data.answers}
+    if len(answers) != len(data.answers) or set(answers) != {q["id"] for q in quiz.questions}:
+        raise ApiError(400)
+    if any(answers[q["id"]] >= len(q["options"]) for q in quiz.questions):
+        raise ApiError(400)
+    digest = hashlib.sha256(json.dumps(answers, sort_keys=True).encode()).hexdigest()
+    existing = session.scalar(
+        select(Attempt).where(Attempt.quiz_id == quiz_id, Attempt.answer_digest == digest)
+    )
+    if existing:
+        return attempt_response(existing)
+    count = session.scalar(
+        select(func.count()).select_from(Attempt).where(Attempt.quiz_id == quiz_id)
+    )
+    if count >= 100:
+        raise ApiError(
+            429, "attempt_limit", "This quiz has reached its attempt limit. Create another quiz."
+        )
+    results = [
+        {
+            "questionId": question["id"],
+            "answer": answers[question["id"]],
+            "correctAnswer": question["correctAnswer"],
+            "correct": answers[question["id"]] == question["correctAnswer"],
+            "explanation": question["explanation"],
+            "sourceIds": question["sourceIds"],
+        }
+        for question in quiz.questions
+    ]
+    attempt = Attempt(
+        quiz_id=quiz_id,
+        answer_digest=digest,
+        score=sum(result["correct"] for result in results),
+        total=len(results),
+        results=results,
+    )
+    session.add(attempt)
+    session.commit()
+    return attempt_response(attempt)

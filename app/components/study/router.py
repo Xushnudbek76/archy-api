@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Request
 
 from app.components.documents.router import owned_unit
 from app.components.study import generation, service
-from app.components.study.schemas import NotesInput, QuizInput
+from app.components.study.schemas import AttemptInput, NotesInput, QuizInput
 from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf
 from app.libs.errors import ApiError
 from app.libs.workers import run_worker
@@ -76,3 +76,13 @@ async def create_quiz(document_id: UUID, data: QuizInput, request: Request):
         )
     finally:
         limiter.release()
+
+
+@router.get("/v1/quizzes/{quiz_id}/attempts")
+def attempts(quiz_id: UUID, identity: IdentityDep, session: SessionDep):
+    return service.list_attempts(session, identity.id, quiz_id)
+
+
+@router.post("/v1/quizzes/{quiz_id}/attempts", status_code=201)
+def create_attempt(quiz_id: UUID, data: AttemptInput, identity: IdentityDep, session: SessionDep):
+    return service.save_attempt(session, identity.id, quiz_id, data)

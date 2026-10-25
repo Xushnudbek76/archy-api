@@ -280,3 +280,88 @@ def test_quiz_is_private_when_document_owner_changes(api_client):
     assert client.get(f"/v1/quizzes/{quiz['id']}").status_code == 404
     assert client.get(f"/v1/documents/{key}/quizzes").status_code == 404
     assert create_quiz(client, key).status_code == 404
+
+
+def answers_for(quiz, value=0):
+    return {
+        "answers": [
+            {"questionId": question["id"], "answer": value} for question in quiz["questions"]
+        ]
+    }
+
+
+def test_attempts_score_server_side_and_persist_idempotently(api_client):
+    client = api_client
+    key = notes_document(client)
+    quiz = create_quiz(client, key).json()
+    data = answers_for(quiz)
+    data["answers"][0]["answer"] = 1
+    result = post(client, f"/v1/quizzes/{quiz['id']}/attempts", data)
+    assert result.status_code == 201
+    attempt = result.json()
+    assert attempt["score"] == 4 and attempt["total"] == 5
+    assert len(attempt["results"]) == 5
+    assert attempt["results"][0]["correct"] is False
+    assert attempt["results"][0]["correctAnswer"] == 0
+    assert attempt["results"][0]["sourceIds"] and attempt["results"][0]["explanation"]
+    assert post(client, f"/v1/quizzes/{quiz['id']}/attempts", data).json() == attempt
+    assert client.get(f"/v1/quizzes/{quiz['id']}/attempts").json() == {"items": [attempt]}
+    assert "correctAnswer" not in client.get(f"/v1/quizzes/{quiz['id']}").text
+    assert post(client, f"/v1/documents/{key}/archive", {}).status_code == 200
+    assert client.get(f"/v1/quizzes/{quiz['id']}/attempts").status_code == 404
+    assert post(client, f"/v1/quizzes/{quiz['id']}/attempts", data).status_code == 404
+
+
+def test_attempts_require_complete_unique_valid_answers(api_client):
+    from copy import deepcopy
+
+    client = api_client
+    key = notes_document(client)
+    quiz = create_quiz(client, key).json()
+    data = answers_for(quiz)
+    variants = []
+    missing = deepcopy(data)
+    missing["answers"].pop()
+    variants.append(missing)
+    duplicate = deepcopy(data)
+    duplicate["answers"][1] = duplicate["answers"][0]
+    variants.append(duplicate)
+    foreign = deepcopy(data)
+    foreign["answers"][0]["questionId"] = "00000000-0000-0000-0000-000000000000"
+    variants.append(foreign)
+    invalid_index = deepcopy(data)
+    invalid_index["answers"][1]["answer"] = 2
+    variants.append(invalid_index)
+    invalid_type = deepcopy(data)
+    invalid_type["answers"][0]["answer"] = True
+    variants.append(invalid_type)
+    for value in variants:
+        assert post(client, f"/v1/quizzes/{quiz['id']}/attempts", value).status_code == 400
+    assert client.get(f"/v1/quizzes/{quiz['id']}/attempts").json() == {"items": []}
+
+
+def test_attempt_limit_keeps_duplicate_submission_idempotent(api_client):
+    from app.components.study.models import Attempt
+
+    client = api_client
+    key = notes_document(client)
+    quiz = create_quiz(client, key).json()
+    data = answers_for(quiz)
+    first = post(client, f"/v1/quizzes/{quiz['id']}/attempts", data).json()
+    with client.app.state.sessions() as session:
+        for index in range(99):
+            session.add(
+                Attempt(
+                    quiz_id=UUID(quiz["id"]),
+                    answer_digest=str(index).zfill(64),
+                    score=0,
+                    total=5,
+                    results=[],
+                )
+            )
+        session.commit()
+    assert post(client, f"/v1/quizzes/{quiz['id']}/attempts", data).json() == first
+    data["answers"][0]["answer"] = 1
+    assert (
+        post(client, f"/v1/quizzes/{quiz['id']}/attempts", data).json()["code"] == "attempt_limit"
+    )
