@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.components.accounts.models import now
 from app.database.base import Base
@@ -28,6 +29,7 @@ class Document(Base):
     pdf_size_bytes = Column(BigInteger, nullable=True)
     page_count = Column(Integer, nullable=True)
     text = Column(Text, nullable=True)
+    pages = Column(JSONB, nullable=True)
     archived_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now)

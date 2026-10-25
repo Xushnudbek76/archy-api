@@ -163,6 +163,7 @@ def save_pdf(session, owner_id, key, body, file_name, extracted, storage_root):
                 document.pdf_size_bytes = len(body)
                 document.page_count = extracted.page_count
                 document.text = extracted.text
+                document.pages = list(extracted.pages) if extracted.pages is not None else None
                 document.updated_at = now()
                 session.commit()
             except BaseException:

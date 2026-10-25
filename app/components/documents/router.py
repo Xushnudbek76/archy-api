@@ -99,3 +99,10 @@ async def download_pdf(document_id: UUID, request: Request):
         request.app.state.settings.storage_root,
     )
     return await pdf_response(metadata, request)
+
+
+@router.get("/{document_id}/sources")
+def sources(document_id: UUID, identity: IdentityDep, session: SessionDep):
+    from app.components.documents.sources import document_sources
+
+    return {"items": document_sources(session, identity.id, document_id)}

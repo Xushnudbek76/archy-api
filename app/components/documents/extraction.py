@@ -22,6 +22,7 @@ ERRORS = {
 class ExtractedPdf:
     page_count: int
     text: str
+    pages: tuple[str, ...] | None = None
 
 
 def extract_pdf(body):
@@ -50,6 +51,14 @@ def extract_pdf(body):
             or len(text) > 500_000
         ):
             raise ValueError
-        return ExtractedPdf(pages, text)
+        page_text = data.get("pages")
+        if page_text is not None and (
+            not isinstance(page_text, list)
+            or len(page_text) != pages
+            or any(not isinstance(value, str) for value in page_text)
+            or "\n".join(page_text).strip() != text
+        ):
+            raise ValueError
+        return ExtractedPdf(pages, text, tuple(page_text) if page_text is not None else None)
     except (ResourceLimit, OSError, ValueError, KeyError, TypeError, AttributeError):
         raise ApiError(400, "invalid_pdf", ERRORS["invalid_pdf"]) from None

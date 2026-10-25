@@ -25,7 +25,7 @@ def extract(body):
     text = "\n".join(texts).strip()
     if not text:
         return {"error": "pdf_no_text"}
-    return {"pageCount": count, "text": text}
+    return {"pageCount": count, "text": text, "pages": texts}
 
 
 def main():
