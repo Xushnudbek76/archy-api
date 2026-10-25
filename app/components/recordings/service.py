@@ -196,6 +196,10 @@ def complete_upload(session, owner_id, key, storage_root, processing=None):
                     duration_seconds=media.duration_seconds,
                 )
             )
+            session.flush()
+            from app.components.documents.service import materialize_recording
+
+            materialize_recording(session, session.get(Recording, key))
             from app.components.processing.service import enqueue
 
             enqueue(session, upload, processing)

@@ -1,6 +1,7 @@
 def register_models():
     from app.components.accounts.models import AccountSession, ActionToken, SignupAttempt, User
     from app.components.courses.models import Course
+    from app.components.documents.models import Document
     from app.components.processing.models import (
         Job,
         Note,
@@ -17,6 +18,7 @@ def register_models():
         AccountSession,
         ActionToken,
         Course,
+        Document,
         Upload,
         Recording,
         Job,
