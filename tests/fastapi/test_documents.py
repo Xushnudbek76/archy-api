@@ -117,3 +117,78 @@ def test_accepted_recording_materializes_once_and_can_be_reused(api_client):
         ).status_code
         == 404
     )
+
+
+def test_literal_search_filters_and_management(api_client):
+    client = api_client
+    signin(client)
+    first = post(client, "/v1/courses", {"title": "First"}).json()
+    second = post(client, "/v1/courses", {"title": "Second"}).json()
+    document = post(
+        client, "/v1/documents", {"title": "100%_Literal", "courseId": first["id"]}
+    ).json()
+    post(client, "/v1/documents", {"title": "100XXLiteral", "courseId": second["id"]})
+    assert client.get("/v1/documents", params={"q": "%_"}).json()["items"] == [document]
+    assert client.get("/v1/documents", params={"q": "literal", "courseId": first["id"]}).json()[
+        "items"
+    ] == [document]
+    assert (
+        client.get("/v1/documents", params={"q": "literal", "courseId": second["id"]}).json()[
+            "total"
+        ]
+        == 1
+    )
+    csrf = client.get("/v1/auth/csrf").json()["csrfToken"]
+    path = f"/v1/documents/{document['id']}"
+    response = client.patch(
+        path, json={"title": " Renamed ", "courseId": second["id"]}, headers={"X-CSRFToken": csrf}
+    )
+    assert response.status_code == 200
+    assert response.json()["title"] == "Renamed" and response.json()["courseId"] == second["id"]
+    assert (
+        client.patch(path, json={"courseId": None}, headers={"X-CSRFToken": csrf}).json()[
+            "courseId"
+        ]
+        is None
+    )
+    for data in [
+        {},
+        {"extra": True},
+        {"title": None},
+        {"title": ""},
+        {"title": 11},
+        {"recordingId": 11},
+    ]:
+        assert client.patch(path, json=data, headers={"X-CSRFToken": csrf}).status_code == 400
+    archived = post(client, f"{path}/archive", {}).json()
+    assert archived["archivedAt"]
+    assert post(client, f"{path}/archive", {}).json() == archived
+    assert client.get(path).status_code == 404
+    assert (
+        client.patch(path, json={"title": "Hidden"}, headers={"X-CSRFToken": csrf}).status_code
+        == 404
+    )
+    assert client.get("/v1/documents").json()["total"] == 1
+    for params in [
+        {"q": "x" * 101},
+        {"courseId": "invalid"},
+        [("q", "a"), ("q", "b")],
+        [("courseId", first["id"]), ("courseId", first["id"])],
+    ]:
+        assert client.get("/v1/documents", params=params).status_code == 400
+    other_user(client)
+    csrf = client.get("/v1/auth/csrf").json()["csrfToken"]
+    assert (
+        client.patch(path, json={"title": "Foreign"}, headers={"X-CSRFToken": csrf}).status_code
+        == 404
+    )
+    assert post(client, f"{path}/archive", {}).status_code == 404
+    other = post(client, "/v1/documents", {"title": "Other"}).json()
+    assert (
+        client.patch(
+            f"/v1/documents/{other['id']}",
+            json={"courseId": first["id"]},
+            headers={"X-CSRFToken": csrf},
+        ).status_code
+        == 404
+    )

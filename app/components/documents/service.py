@@ -1,6 +1,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 
+from app.components.accounts.models import now
 from app.components.courses.models import Course
 from app.components.documents.models import Document
 from app.components.documents.schemas import DocumentDetail, DocumentPage, DocumentResponse
@@ -88,8 +89,13 @@ def read_document(session, owner_id, key):
     return document_response(owned_document(session, owner_id, key), detail=True)
 
 
-def list_documents(session, owner_id, page):
+def list_documents(session, owner_id, page, q="", course_id=None):
     query = select(Document).where(Document.owner_id == owner_id, Document.archived_at.is_(None))
+    if q:
+        escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        query = query.where(Document.title.ilike(f"%{escaped}%", escape="\\"))
+    if course_id is not None:
+        query = query.where(Document.course_id == course_id)
     total = session.scalar(select(func.count()).select_from(query.subquery()))
     rows = session.scalars(
         query.order_by(Document.created_at.desc(), Document.id.desc())
@@ -100,3 +106,33 @@ def list_documents(session, owner_id, page):
     return DocumentPage(
         **result, page=page, pageSize=PAGE_SIZE, previousPage=page - 1 if page > 1 else None
     )
+
+
+def update_document(session, owner_id, key, data):
+    document = owned_document(session, owner_id, key, locked=True)
+    fields = data.model_fields_set
+    references(
+        session,
+        owner_id,
+        data.courseId if "courseId" in fields else None,
+        data.recordingId if "recordingId" in fields else None,
+    )
+    for field, attribute in (
+        ("title", "title"),
+        ("courseId", "course_id"),
+        ("recordingId", "recording_id"),
+    ):
+        if field in fields:
+            setattr(document, attribute, getattr(data, field))
+    document.updated_at = now()
+    session.commit()
+    return document_response(document)
+
+
+def archive_document(session, owner_id, key):
+    document = owned_document(session, owner_id, key, locked=True, archived=True)
+    if document.archived_at is None:
+        document.archived_at = now()
+        document.updated_at = document.archived_at
+        session.commit()
+    return document_response(document)
