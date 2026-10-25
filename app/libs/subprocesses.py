@@ -1,4 +1,5 @@
 import subprocess
+import tempfile
 import time
 
 
@@ -8,25 +9,29 @@ class ResourceLimit(Exception):
 
 def run_limited(command, *, timeout, max_output, input=None, memory_bytes=768 * 1024 * 1024):
     deadline = time.monotonic() + timeout
-    process = subprocess.Popen(
-        command,
-        stdin=subprocess.PIPE if input is not None else subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-    )
-    payload = input
+    source = None
+    process = None
     try:
+        if input is not None:
+            source = tempfile.TemporaryFile()
+            source.write(input)
+            source.seek(0)
+        process = subprocess.Popen(
+            command,
+            stdin=source if source is not None else subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise ResourceLimit
             try:
-                output, _ = process.communicate(input=payload, timeout=min(0.25, remaining))
+                output, _ = process.communicate(timeout=min(0.25, remaining))
                 if process.returncode != 0 or len(output) > max_output:
                     raise ResourceLimit
                 return output
             except subprocess.TimeoutExpired as error:
-                payload = None
                 if len(error.output or b"") > max_output:
                     raise ResourceLimit from None
                 if process.poll() is None:
@@ -44,6 +49,9 @@ def run_limited(command, *, timeout, max_output, input=None, memory_bytes=768 * 
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         raise ResourceLimit from error
     finally:
-        if process.poll() is None:
-            process.kill()
-        process.communicate()
+        if process is not None:
+            if process.poll() is None:
+                process.kill()
+            process.communicate()
+        if source is not None:
+            source.close()

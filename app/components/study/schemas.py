@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import Field
 
@@ -45,3 +46,7 @@ class QuestionAnswer(StrictInput):
 
 class AttemptInput(StrictInput):
     answers: list[QuestionAnswer] = Field(min_length=1, max_length=15)
+
+
+class RetryInput(StrictInput):
+    attemptId: UUID = Field(strict=False)

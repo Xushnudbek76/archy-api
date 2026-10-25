@@ -280,6 +280,16 @@ def test_quiz_is_private_when_document_owner_changes(api_client):
     assert client.get(f"/v1/quizzes/{quiz['id']}").status_code == 404
     assert client.get(f"/v1/documents/{key}/quizzes").status_code == 404
     assert create_quiz(client, key).status_code == 404
+    assert client.get(f"/v1/quizzes/{quiz['id']}/attempts").status_code == 404
+    assert post(client, f"/v1/quizzes/{quiz['id']}/attempts", answers_for(quiz)).status_code == 404
+    assert (
+        post(
+            client,
+            f"/v1/quizzes/{quiz['id']}/retry",
+            {"attemptId": "00000000-0000-0000-0000-000000000000"},
+        ).status_code
+        == 404
+    )
 
 
 def answers_for(quiz, value=0):
@@ -365,3 +375,110 @@ def test_attempt_limit_keeps_duplicate_submission_idempotent(api_client):
     assert (
         post(client, f"/v1/quizzes/{quiz['id']}/attempts", data).json()["code"] == "attempt_limit"
     )
+
+
+def test_retry_contains_only_mistakes_and_preserves_original_questions(api_client, monkeypatch):
+    client = api_client
+    key = notes_document(client)
+    quiz = create_quiz(client, key).json()
+    data = answers_for(quiz)
+    data["answers"][0]["answer"] = 1
+    data["answers"][2]["answer"] = 1
+    attempt = post(client, f"/v1/quizzes/{quiz['id']}/attempts", data).json()
+
+    def forbidden(*args):
+        raise AssertionError("Retry must not call provider")
+
+    monkeypatch.setattr("app.components.study.generation.generate_quiz", forbidden)
+    response = post(client, f"/v1/quizzes/{quiz['id']}/retry", {"attemptId": attempt["id"]})
+    assert response.status_code == 201
+    retry = response.json()
+    assert retry["id"] != quiz["id"] and len(retry["questions"]) == 2
+    assert retry["questions"] == [quiz["questions"][0], quiz["questions"][2]]
+    assert "correctAnswer" not in response.text and "explanation" not in response.text
+    assert (
+        post(client, f"/v1/quizzes/{quiz['id']}/retry", {"attemptId": attempt["id"]}).json()
+        == retry
+    )
+    assert client.get(f"/v1/quizzes/{quiz['id']}").json() == quiz
+    complete = post(client, f"/v1/quizzes/{retry['id']}/attempts", answers_for(retry)).json()
+    result = post(client, f"/v1/quizzes/{retry['id']}/retry", {"attemptId": complete["id"]})
+    assert result.status_code == 409 and result.json()["code"] == "no_incorrect_answers"
+    assert post(client, f"/v1/documents/{key}/archive", {}).status_code == 200
+    assert (
+        post(client, f"/v1/quizzes/{quiz['id']}/retry", {"attemptId": attempt["id"]}).status_code
+        == 404
+    )
+
+
+def test_retry_rejects_attempt_from_another_quiz(api_client):
+    client = api_client
+    key = notes_document(client)
+    quiz = create_quiz(client, key).json()
+    other = create_quiz(client, key).json()
+    attempt = post(client, f"/v1/quizzes/{other['id']}/attempts", answers_for(other, 1)).json()
+    assert (
+        post(client, f"/v1/quizzes/{quiz['id']}/retry", {"attemptId": attempt["id"]}).status_code
+        == 404
+    )
+    assert (
+        post(client, f"/v1/quizzes/{quiz['id']}/retry", {"attemptId": "invalid"}).status_code == 400
+    )
+
+
+def test_generation_bounds_include_source_metadata_and_fixture_notes_cover_batches():
+    import pytest
+
+    from app.components.processing.config import ProcessingSettings
+    from app.components.study.generation import generate_notes, generate_quiz
+    from app.components.study.schemas import QuizInput
+    from app.libs.errors import ApiError
+
+    sources = [
+        dict(
+            id=f"pdf:{index:024x}", kind="pdf", text="A fact", page=index + 1, start=None, end=None
+        )
+        for index in range(600)
+    ]
+    config = ProcessingSettings(backend="fixture")
+    with pytest.raises(ApiError) as error:
+        generate_notes(sources, "en", config)
+    assert error.value.code == "study_source_limit"
+    with pytest.raises(ApiError) as error:
+        generate_quiz(
+            sources[:250], QuizInput(language="en", questionType="mixed", questionCount=5), config
+        )
+    assert error.value.code == "study_source_limit"
+    result = generate_notes(sources[:50], "en", config)
+    assert 1 <= len(result["sections"]) <= 48
+    assert {source_id for section in result["sections"] for source_id in section["sourceIds"]} == {
+        source["id"] for source in sources[:50]
+    }
+
+
+def test_source_pages_preserve_distinct_pdf_text(api_client):
+    from io import BytesIO
+
+    from pypdf import PdfReader, PdfWriter
+
+    from tests.fastapi.test_document_pdfs import pdf_bytes
+
+    client = api_client
+    signin(client)
+    key = new_document(client)
+    assert (
+        post(client, f"/v1/documents/{key}/study-notes", {"language": "en"}).json()["code"]
+        == "study_sources_unavailable"
+    )
+    writer = PdfWriter()
+    for text in ("First page fact", "Second page fact"):
+        writer.add_page(PdfReader(BytesIO(pdf_bytes(text))).pages[0])
+    body = BytesIO()
+    writer.write(body)
+    assert upload(client, key, content=body.getvalue()).status_code == 200
+    sources = client.get(f"/v1/documents/{key}/sources").json()["items"]
+    assert [(source["page"], source["text"]) for source in sources] == [
+        (1, "First page fact"),
+        (2, "Second page fact"),
+    ]
+    assert sources[0]["id"] != sources[1]["id"]

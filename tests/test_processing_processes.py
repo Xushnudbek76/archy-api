@@ -27,3 +27,24 @@ def test_bounded_process_rejects_excessive_output_and_memory():
             max_output=1024,
             memory_bytes=20 * 1024 * 1024,
         )
+
+
+def test_subprocess_feeds_large_input_after_slow_child_start():
+    import hashlib
+    import sys
+
+    from app.libs.subprocesses import run_limited
+
+    payload = b"large synthetic study source\n" * 12000
+    result = run_limited(
+        [
+            sys.executable,
+            "-c",
+            "import sys,time,hashlib; time.sleep(0.4); "
+            "print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())",
+        ],
+        timeout=3,
+        max_output=100,
+        input=payload,
+    )
+    assert result.decode().strip() == hashlib.sha256(payload).hexdigest()

@@ -11,12 +11,13 @@ def register_models():
         TranscriptChunk,
     )
     from app.components.recordings.models import Recording, Upload
-    from app.components.study.models import Attempt, Quiz, StudyNote
+    from app.components.study.models import Attempt, Quiz, QuizRetry, StudyNote
 
     return (
         StudyNote,
         Quiz,
         Attempt,
+        QuizRetry,
         User,
         SignupAttempt,
         AccountSession,

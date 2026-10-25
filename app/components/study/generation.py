@@ -99,23 +99,30 @@ def completion(sources, language, schema, instruction, config, deadline):
         ) from None
 
 
+def source_bytes(sources):
+    return len(json.dumps(sources, ensure_ascii=False).encode())
+
+
 def split_sources(sources):
     batches = []
-    current, size = [], 0
-    if sum(len(source["text"].encode()) for source in sources) > 64000:
+    current = []
+    if source_bytes(sources) > 64000:
         raise source_limit()
     for source in sources:
         remaining = source["text"]
         while remaining:
             piece = remaining[:2000]
-            while len(piece.encode()) > 8000:
+            value = {**source, "text": piece}
+            while source_bytes([value]) > 8000:
                 piece = piece[: len(piece) // 2]
+                value = {**source, "text": piece}
+                if not piece:
+                    raise source_limit()
             remaining = remaining[len(piece) :]
-            if current and size + len(piece.encode()) > 8000:
+            if current and source_bytes([*current, value]) > 8000:
                 batches.append(current)
-                current, size = [], 0
-            current.append({**source, "text": piece})
-            size += len(piece.encode())
+                current = []
+            current.append(value)
     if current:
         batches.append(current)
     if len(batches) > 8:
@@ -130,6 +137,10 @@ def generate_notes(sources, language, config):
     parts = []
     for batch in batches:
         if config.backend == "fixture":
+            group_size = max(1, (len(batch) + 5) // 6)
+            groups = [
+                batch[index : index + group_size] for index in range(0, len(batch), group_size)
+            ]
             parts.append(
                 {
                     "overview": "합성 테스트 학습 노트"
@@ -138,10 +149,10 @@ def generate_notes(sources, language, config):
                     "sections": [
                         {
                             "title": "원문" if language == "ko" else "Source",
-                            "text": source["text"][:1000],
-                            "sourceIds": [source["id"]],
+                            "text": "\n".join(source["text"] for source in group)[:3000],
+                            "sourceIds": list(dict.fromkeys(source["id"] for source in group)),
                         }
-                        for source in batch
+                        for group in groups
                     ],
                 }
             )
@@ -188,7 +199,7 @@ def validate_quiz(content, sources, data):
 
 def generate_quiz(sources, data, config):
     configured(config)
-    if sum(len(source["text"].encode()) for source in sources) > 24000:
+    if source_bytes(sources) > 24000:
         raise source_limit()
     if config.backend == "fixture":
         questions = []

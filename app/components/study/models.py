@@ -55,3 +55,9 @@ class Attempt(Base):
             "score >= 0 AND score <= total AND total BETWEEN 1 AND 15", name="score_valid"
         ),
     )
+
+
+class QuizRetry(Base):
+    __tablename__ = "study_quiz_retry"
+    attempt_id = Column(Uuid, ForeignKey("archy.study_attempt.id"), primary_key=True)
+    quiz_id = Column(Uuid, ForeignKey("archy.study_quiz.id"), nullable=False, unique=True)

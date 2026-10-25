@@ -9,7 +9,7 @@ from app.components.accounts.models import now
 from app.components.documents.service import owned_document
 from app.components.documents.sources import document_sources, source_revision
 from app.components.study.generation import validate_content, validate_quiz
-from app.components.study.models import Attempt, Quiz, StudyNote
+from app.components.study.models import Attempt, Quiz, QuizRetry, StudyNote
 from app.components.study.schemas import NotesContent
 from app.libs.errors import ApiError
 
@@ -191,3 +191,33 @@ def save_attempt(session, owner_id, quiz_id, data):
     session.add(attempt)
     session.commit()
     return attempt_response(attempt)
+
+
+def retry_quiz(session, owner_id, quiz_id, attempt_id):
+    quiz = owned_quiz(session, owner_id, quiz_id, locked=True)
+    attempt = session.get(Attempt, attempt_id)
+    if attempt is None or attempt.quiz_id != quiz_id:
+        raise ApiError(404)
+    existing = session.get(QuizRetry, attempt_id)
+    if existing:
+        return quiz_response(session.get(Quiz, existing.quiz_id))
+    mistakes = {result["questionId"] for result in attempt.results if not result["correct"]}
+    if not mistakes:
+        raise ApiError(
+            409,
+            "no_incorrect_answers",
+            "All answers were correct. Create a new quiz to keep studying.",
+        )
+    retry = Quiz(
+        document_id=quiz.document_id,
+        title=("Retry: " + quiz.title)[:100],
+        source_revision=quiz.source_revision,
+        language=quiz.language,
+        provider=quiz.provider,
+        questions=[question for question in quiz.questions if question["id"] in mistakes],
+    )
+    session.add(retry)
+    session.flush()
+    session.add(QuizRetry(attempt_id=attempt_id, quiz_id=retry.id))
+    session.commit()
+    return quiz_response(retry)
