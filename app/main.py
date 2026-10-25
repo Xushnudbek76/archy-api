@@ -33,8 +33,10 @@ def create_app(settings):
     from app.components.processing.router import router as processing_router
     from app.components.recordings.router import router as recordings_router
     from app.components.study.router import router as study_router
+    from app.components.tutor.router import router as tutor_router
     from app.libs.throttling import AccountLimiter
 
+    application.include_router(tutor_router)
     application.include_router(study_router)
     application.state.study_limiter = anyio.CapacityLimiter(2)
     application.include_router(documents_router)
