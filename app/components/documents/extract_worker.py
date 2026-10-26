@@ -22,10 +22,9 @@ def extract(body):
         if length > 500_000:
             return {"error": "pdf_text_too_large"}
         texts.append(text)
-    text = "\n".join(texts).strip()
-    if not text:
+    if not any(text.strip() for text in texts):
         return {"error": "pdf_no_text"}
-    return {"pageCount": count, "text": text, "pages": texts}
+    return {"pageCount": count, "pages": texts}
 
 
 def main():
@@ -35,7 +34,9 @@ def main():
         result = extract(body) if len(body) <= 20 * 1024 * 1024 else {"error": "invalid_pdf"}
     except Exception:
         result = {"error": "invalid_pdf"}
-    sys.stdout.buffer.write(json.dumps(result, ensure_ascii=False).encode("utf-8"))
+    sys.stdout.buffer.write(
+        json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    )
 
 
 if __name__ == "__main__":

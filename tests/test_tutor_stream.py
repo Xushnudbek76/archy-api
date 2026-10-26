@@ -144,3 +144,19 @@ def test_groq_stream_decodes_fragmented_utf8_and_requires_complete_finish():
     with pytest.raises(ApiError) as error:
         collect(config, httpx.Response(429, headers={"retry-after": "73"}))
     assert error.value.code == "quota_wait" and error.value.retry_after == 73
+
+
+def test_groq_stream_handles_mixed_event_newlines_in_one_network_chunk():
+    from app.components.processing.config import ProcessingSettings
+
+    config = ProcessingSettings(backend="groq", api_key="synthetic-key")
+    body = sse().replace(b"\r\n\r\n", b"\n\n", 1)
+    assert collect(config, httpx.Response(200, content=body)) == ["Real answer 한글"]
+
+
+def test_groq_stream_bounds_answer_bytes_even_with_valid_frames():
+    from app.components.processing.config import ProcessingSettings
+
+    config = ProcessingSettings(backend="groq", api_key="synthetic-key")
+    with pytest.raises(ApiError):
+        collect(config, httpx.Response(200, content=sse(text="한" * 4001)))

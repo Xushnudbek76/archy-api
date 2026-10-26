@@ -12,11 +12,12 @@ def register_models():
     )
     from app.components.recordings.models import Recording, Upload
     from app.components.study.models import Attempt, Quiz, QuizRetry, StudyNote
-    from app.components.tutor.models import Conversation, Generation, Message
+    from app.components.tutor.models import Conversation, Generation, Message, Usage
 
     return (
         Conversation,
         Generation,
+        Usage,
         Message,
         StudyNote,
         Quiz,

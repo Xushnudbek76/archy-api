@@ -1,13 +1,12 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
-from starlette.responses import StreamingResponse
 
 from app.components.accounts.schemas import StrictInput
 from app.components.documents.router import owned_unit
 from app.components.tutor import service, turns
 from app.components.tutor.schemas import MessageInput
-from app.components.tutor.streaming import answer_events
+from app.components.tutor.streaming import TutorResponse, release_reservation
 from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf
 from app.libs.workers import run_worker
 
@@ -31,16 +30,19 @@ def read(conversation_id: UUID, identity: IdentityDep, session: SessionDep):
 
 @router.post("/v1/conversations/{conversation_id}/messages")
 async def message(conversation_id: UUID, data: MessageInput, request: Request):
-    held = await run_worker(
-        owned_unit,
-        request,
-        turns.prepare,
-        conversation_id,
-        data,
-        request.app.state.settings.processing,
-    )
-    return StreamingResponse(
-        answer_events(request, held),
-        media_type="application/x-ndjson",
-        headers={"Cache-Control": "private, no-store", "X-Accel-Buffering": "no"},
-    )
+    prepared = []
+
+    def reserve():
+        held = owned_unit(
+            request, turns.prepare, conversation_id, data, request.app.state.settings.processing
+        )
+        prepared.append(held)
+        return held
+
+    try:
+        held = await run_worker(reserve)
+        return TutorResponse(request, held)
+    except BaseException:
+        if prepared:
+            await release_reservation(request, prepared[0])
+        raise

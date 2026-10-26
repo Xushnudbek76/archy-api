@@ -121,7 +121,7 @@ def test_pdf_extraction_limits_and_errors_are_safe(api_client, monkeypatch, capl
 
     def fail(command, **options):
         assert options["timeout"] <= 20
-        assert options["max_output"] <= 3_000_000
+        assert options["max_output"] <= 3_100_000
         assert options["memory_bytes"] <= 512 * 1024 * 1024
         raise ResourceLimit("private-parser-error")
 

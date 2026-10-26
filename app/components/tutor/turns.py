@@ -9,6 +9,7 @@ from sqlalchemy import select, update
 from app.components.accounts.models import now
 from app.components.documents.service import owned_document
 from app.components.documents.sources import document_sources, source_revision
+from app.components.tutor import limits
 from app.components.tutor.models import Generation, Message
 from app.components.tutor.retrieval import build_body, retrieve, terms
 from app.components.tutor.service import message_response, owned_conversation
@@ -65,6 +66,7 @@ def prepare(session, owner_id, conversation_id, data, config):
     body = build_body(
         sources, [message_response(item) for item in history], data.message, data.language
     )
+    limits.reserve(session, owner_id, config.backend, has_sources=bool(sources))
     if generation is None:
         generation = Generation(
             conversation_id=conversation_id, request_id=UUID(data.requestId), payload_digest=digest

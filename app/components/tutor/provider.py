@@ -17,6 +17,7 @@ class EventParser:
     def __init__(self):
         self.buffer = bytearray()
         self.total = 0
+        self.answer_bytes = 0
         self.stopped = False
         self.done = False
 
@@ -27,7 +28,8 @@ class EventParser:
         self.buffer.extend(block)
         result = []
         while b"\n\n" in self.buffer or b"\r\n\r\n" in self.buffer:
-            marker = b"\r\n\r\n" if b"\r\n\r\n" in self.buffer else b"\n\n"
+            markers = [marker for marker in (b"\n\n", b"\r\n\r\n") if marker in self.buffer]
+            marker = min(markers, key=self.buffer.index)
             frame, _, remaining = self.buffer.partition(marker)
             self.buffer = bytearray(remaining)
             if len(frame) > 32768:
@@ -62,6 +64,9 @@ class EventParser:
                 if not isinstance(text, str):
                     raise invalid()
                 if text:
+                    self.answer_bytes += len(text.encode())
+                    if self.answer_bytes > 12000:
+                        raise invalid()
                     result.append(text)
             finish = choice.get("finish_reason")
             if finish is not None:
@@ -77,7 +82,7 @@ class EventParser:
             raise invalid()
 
 
-async def stream_answer(body, config, *, transport=None):
+async def stream_answer(body, config, *, transport=None, cooldown=None):
     if config.backend == "fixture":
         sources = json.loads(body["messages"][1]["content"].split("\n", 1)[1])
         text = "Synthetic fixture tutor: " + sources[0]["text"][:300]
@@ -115,6 +120,9 @@ async def stream_answer(body, config, *, transport=None):
                     raise ApiError(
                         503, "tutor_provider_unavailable", "The tutor provider is unavailable."
                     )
+                delay = header_delay(response.headers)
+                if delay and cooldown is not None:
+                    await cooldown(delay)
                 async for block in response.aiter_bytes():
                     for text in parser.feed(block):
                         yield text

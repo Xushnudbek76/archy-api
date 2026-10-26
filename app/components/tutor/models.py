@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -59,3 +60,11 @@ class Generation(Base):
         CheckConstraint("(lease_token IS NULL) = (lease_expires_at IS NULL)", name="lease_valid"),
         Index("ix_tutor_generation_lease", "status", "lease_expires_at"),
     )
+
+
+class Usage(Base):
+    __tablename__ = "tutor_usage"
+    owner_id = Column(Uuid, ForeignKey("archy.accounts_user.id"), primary_key=True)
+    window_started_at = Column(DateTime(timezone=True), nullable=False)
+    attempts = Column(Integer, nullable=False)
+    __table_args__ = (CheckConstraint("attempts >= 0 AND attempts <= 10", name="attempts_valid"),)

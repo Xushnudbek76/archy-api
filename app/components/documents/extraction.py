@@ -35,29 +35,31 @@ def extract_pdf(body):
             output = run_limited(
                 [sys.executable, "-m", "app.components.documents.extract_worker", str(path)],
                 timeout=15,
-                max_output=2_100_000,
+                max_output=3_100_000,
                 memory_bytes=384 * 1024 * 1024,
             )
         data = json.loads(output)
         code = data.get("error")
         if code in ERRORS:
             raise ApiError(400, code, ERRORS[code])
-        pages, text = data["pageCount"], data["text"]
-        if (
-            type(pages) is not int
-            or not 1 <= pages <= 200
-            or not isinstance(text, str)
-            or not text.strip()
-            or len(text) > 500_000
-        ):
+        pages = data["pageCount"]
+        if type(pages) is not int or not 1 <= pages <= 200:
             raise ValueError
         page_text = data.get("pages")
-        if page_text is not None and (
-            not isinstance(page_text, list)
-            or len(page_text) != pages
-            or any(not isinstance(value, str) for value in page_text)
-            or "\n".join(page_text).strip() != text
-        ):
+        if page_text is not None:
+            if (
+                not isinstance(page_text, list)
+                or len(page_text) != pages
+                or any(not isinstance(value, str) for value in page_text)
+                or sum(len(value) for value in page_text) + pages - 1 > 500_000
+            ):
+                raise ValueError
+            text = "\n".join(page_text).strip()
+            if "text" in data and data["text"] != text:
+                raise ValueError
+        else:
+            text = data["text"]
+        if not isinstance(text, str) or not text.strip() or len(text) > 500_000:
             raise ValueError
         return ExtractedPdf(pages, text, tuple(page_text) if page_text is not None else None)
     except (ResourceLimit, OSError, ValueError, KeyError, TypeError, AttributeError):
