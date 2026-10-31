@@ -5,13 +5,12 @@ from fastapi import APIRouter, Depends, Request
 from starlette.datastructures import QueryParams
 
 from app.components.accounts.schemas import StrictInput
-from app.components.accounts.service import current_identity
 from app.components.documents import service
 from app.components.documents.extraction import extract_pdf
 from app.components.documents.pdf import MAX_PDF_BYTES, file_name, pdf_response, validate_pdf
 from app.components.documents.schemas import DocumentInput, DocumentPatch
 from app.libs.body import receive_body
-from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf
+from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf, request_identity
 from app.libs.errors import ApiError
 from app.libs.pagination import page_query
 from app.libs.workers import run_worker
@@ -56,7 +55,7 @@ def archive(document_id: UUID, data: StrictInput, identity: IdentityDep, session
 
 def owned_unit(request, function, *args):
     with request.app.state.sessions() as session:
-        identity = current_identity(session, request.cookies.get("sessionid", ""))
+        identity = request_identity(session, request)
         return function(session, identity.id, *args)
 
 

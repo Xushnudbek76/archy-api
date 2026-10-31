@@ -8,6 +8,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.components.accounts.models import AccountSession, ActionToken, SignupAttempt, User, now
+from app.components.demo.constants import DEMO_USER_ID
 from app.libs.errors import ApiError
 from app.libs.security import (
     digest_token,
@@ -30,6 +31,7 @@ class AccountIdentity:
 
     def response(self):
         return {
+            **({"isDemo": True} if self.id == DEMO_USER_ID else {}),
             "id": str(self.id),
             "email": self.email,
             "displayName": self.display_name,
@@ -209,7 +211,9 @@ def request_password_reset(session, email):
         .with_for_update()
     ).first()
     link = (
-        issue_action(session, user, "reset") if user and not user.password.startswith("!") else None
+        issue_action(session, user, "reset")
+        if user and user.id != DEMO_USER_ID and not user.password.startswith("!")
+        else None
     )
     session.commit()
     return link

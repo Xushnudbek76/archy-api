@@ -4,12 +4,11 @@ import anyio
 from fastapi import APIRouter, Depends, Request, Response
 
 from app.components.accounts.schemas import StrictInput
-from app.components.accounts.service import current_identity
 from app.components.recordings import service
 from app.components.recordings.playback import audio_response
 from app.components.recordings.schemas import UploadInput
 from app.libs.body import receive_body
-from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf
+from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf, request_identity
 from app.libs.errors import ApiError
 from app.libs.pagination import page_query
 from app.libs.workers import run_worker
@@ -19,7 +18,7 @@ router = APIRouter(prefix="/v1", dependencies=[Depends(ensure_csrf)])
 
 def owned_unit(request, function, *args, **kwargs):
     with request.app.state.sessions() as session:
-        identity = current_identity(session, request.cookies.get("sessionid", ""))
+        identity = request_identity(session, request)
         return function(session, identity.id, *args, **kwargs)
 
 

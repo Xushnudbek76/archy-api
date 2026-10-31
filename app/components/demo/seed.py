@@ -1,3 +1,5 @@
+import hashlib
+import json
 import os
 import secrets
 import textwrap
@@ -15,7 +17,7 @@ from app.components.demo.content import SAMPLES
 from app.components.documents.models import Document
 from app.components.documents.sources import document_sources, source_revision
 from app.components.documents.storage import DocumentStorage
-from app.components.study.models import Quiz, StudyNote
+from app.components.study.models import Attempt, Quiz, StudyNote
 from app.components.tutor.models import Conversation, Message
 from app.libs.security import hash_password
 
@@ -149,6 +151,37 @@ def seed_workspace(session, storage_root):
                         }
                         for index, (prompt, options, answer) in enumerate(sample["questions"])
                     ],
+                )
+            )
+        session.flush()
+        attempt_id = sample_id(sample["key"] + ":attempt")
+        if session.get(Attempt, attempt_id) is None:
+            questions = session.get(Quiz, quiz_id).questions
+            answers = {
+                q["id"]: (q["correctAnswer"] + (index == 1)) % len(q["options"])
+                for index, q in enumerate(questions)
+            }
+            results = [
+                {
+                    "questionId": q["id"],
+                    "answer": answers[q["id"]],
+                    "correctAnswer": q["correctAnswer"],
+                    "correct": answers[q["id"]] == q["correctAnswer"],
+                    "explanation": q["explanation"],
+                    "sourceIds": q["sourceIds"],
+                }
+                for q in questions
+            ]
+            session.add(
+                Attempt(
+                    id=attempt_id,
+                    quiz_id=quiz_id,
+                    answer_digest=hashlib.sha256(
+                        json.dumps(answers, sort_keys=True).encode()
+                    ).hexdigest(),
+                    score=sum(row["correct"] for row in results),
+                    total=len(results),
+                    results=results,
                 )
             )
         conversation_id = sample_id(sample["key"] + ":conversation")

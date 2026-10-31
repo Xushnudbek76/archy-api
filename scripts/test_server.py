@@ -23,11 +23,17 @@ def test_app():
             "RECORDING_STORAGE_ROOT": str(root / ".local/recordings-test-media"),
             "MAIL_DIRECTORY": str(root / ".local/recordings-test-mail"),
             "MAIL_BACKEND": "file",
+            "DEMO_ENABLED": os.environ.get("TEST_DEMO_ENABLED", "false"),
         }
     )
     if not settings.frontend_origin.startswith(("http://127.0.0.1:", "http://localhost:")):
         raise ValueError("Test frontend must be loopback")
     app = create_app(settings)
+    if settings.demo_enabled:
+        from app.components.demo.seed import seed_workspace
+
+        with app.state.sessions() as session:
+            seed_workspace(session, settings.storage_root)
     # Browser scenarios need independent accounts; account limit behavior has dedicated tests.
     from app.libs.throttling import LIMITS
 

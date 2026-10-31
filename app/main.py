@@ -29,6 +29,7 @@ def create_app(settings):
     application = FastAPI(title="Archy API", redirect_slashes=False, lifespan=lifespan)
     from app.components.accounts.router import router as accounts_router
     from app.components.courses.router import router as courses_router
+    from app.components.demo.router import router as demo_router
     from app.components.documents.router import router as documents_router
     from app.components.processing.router import router as processing_router
     from app.components.recordings.router import router as recordings_router
@@ -36,6 +37,7 @@ def create_app(settings):
     from app.components.tutor.router import router as tutor_router
     from app.libs.throttling import AccountLimiter
 
+    application.include_router(demo_router)
     application.include_router(tutor_router)
     application.include_router(study_router)
     application.state.study_limiter = anyio.CapacityLimiter(2)

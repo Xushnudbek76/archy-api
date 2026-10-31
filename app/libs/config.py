@@ -60,6 +60,7 @@ class Settings:
     connection_budget: int
     max_audio_duration_seconds: int = 1200
     processing: ProcessingSettings = field(default_factory=ProcessingSettings)
+    demo_enabled: bool = False
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = field(default="", repr=False)
@@ -72,6 +73,7 @@ def load_settings(values) -> Settings:
     try:
         mode = values.get("APP_ENV", "development")
         production = mode == "production"
+        demo = values.get("DEMO_ENABLED", "false")
         secret = values.get("SECRET_KEY", "")
         url = values.get("DATABASE_URL", "")
         validate_database_url(url, test=mode == "test")
@@ -92,6 +94,7 @@ def load_settings(values) -> Settings:
         processing = load_processing(values, mode)
         if (
             mode not in {"development", "test", "production"}
+            or demo not in {"true", "false"}
             or len(secret) < 50
             or secure not in {"true", "false"}
             or not hosts
@@ -125,6 +128,7 @@ def load_settings(values) -> Settings:
             budget,
             duration,
             processing,
+            demo == "true",
             values.get("SMTP_HOST", ""),
             int(values.get("SMTP_PORT", "587")),
             values.get("SMTP_USERNAME", ""),
