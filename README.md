@@ -61,3 +61,10 @@ See [architecture](docs/architecture.md), [authentication](docs/authentication.m
 ## Lecture notes
 
 New capped uploads enqueue durable processing jobs. A separate worker generates Korean/English transcripts and notes through Groq; it is disabled until privately configured. See [processing setup](docs/processing.md) for the worker, free-tier pacing, recovery and verification limits.
+
+## Demo and hosting
+
+See [sample workspace](docs/demo.md) for opt-in, read-only demo access, and
+[deployment](docs/deployment.md) for the non-root API image, persistent media volume,
+explicit migration sequence and optional AI worker. These files prepare deployment;
+creating containers does not configure public HTTPS, SMTP or a hosted database.
