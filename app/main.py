@@ -29,6 +29,8 @@ def create_app(settings):
     application = FastAPI(title="Archy API", redirect_slashes=False, lifespan=lifespan)
     from app.components.academics.router import router as academics_router
     from app.components.accounts.router import router as accounts_router
+    from app.components.billing.events import router as billing_events_router
+    from app.components.billing.router import router as billing_router
     from app.components.courses.router import router as courses_router
     from app.components.demo.router import router as demo_router
     from app.components.documents.router import router as documents_router
@@ -53,6 +55,9 @@ def create_app(settings):
     application.include_router(academics_router)
     application.include_router(preferences_router)
     application.include_router(oauth_router)
+    application.include_router(billing_router)
+    application.include_router(billing_events_router)
+    application.state.billing_limiter = anyio.CapacityLimiter(2)
     application.state.timetable_import_limiter = anyio.CapacityLimiter(2)
     application.include_router(courses_router)
     application.state.outbox = []
