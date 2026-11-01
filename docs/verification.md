@@ -40,3 +40,9 @@ Final policy release verification on 2026-10-12: 144 backend tests passed, inclu
 ## Processing checks
 
 Processing tests cover atomic enqueue, uncapped legacy exclusion, private reads, independently committed claims, expired-lease fencing, quota waits, saved-chunk reuse, hierarchical Korean/English token budgeting, safe terminal failures and bounded subprocess cleanup. A real local API/database browser scenario uploads audio, runs the fixture worker and reads the saved notes through Next.js. Fixture notes are labelled synthetic. Six generated20-minute containers exercise PyAV preparation; they establish format/resource behavior rather than speech recognition quality. Real Groq calls remain a separate credential-dependent check.
+
+## Academic workspace parity
+
+Local verification of the independent rebuild: 295 backend tests passed and one environment-dependent test skipped; Ruff formatting/lint and `pip check` passed. Frontend formatting/lint, 135 unit/contract tests, type checking and production build passed. The real local API browser run passed 17 scenarios; two fixture-server-only scenarios were skipped in that run.
+
+Browser coverage includes authentication/recovery, cross-account form reset, semester/timetable persistence and read-only archival, mobile layout, saved profile/language/custom format, invalid checkout protection, real upload/duration validation, synthetic-device microphone pause/resume/save, saved fixture processing and private/sample access. Provider behavior is fixture-backed; project-owned OAuth/Toss/Everytime smoke tests and hosted migration rollout remain separate gates.
