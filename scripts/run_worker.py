@@ -5,16 +5,19 @@ import shutil
 import signal
 import threading
 import time
+from uuid import UUID
 
 from dotenv import dotenv_values
 from sqlalchemy import select
 
+from app.components.preferences.purge import purge_once
 from app.components.processing.models import Job, now
 from app.components.processing.providers import FixtureProvider, GroqProvider
 from app.components.processing.worker import run_once
 from app.database.session import create_engine_for, session_factory
 from app.libs.config import load_settings
 from app.libs.logging import configure_logging
+from app.libs.processing_files import processing_lock
 
 
 def cleanup(sessions, root):
@@ -26,8 +29,17 @@ def cleanup(sessions, root):
             for j in session.scalars(select(Job).where(Job.lease_expires_at > now()))
         }
     for directory in root.iterdir():
-        if directory.is_dir() and not any(directory.name.startswith(prefix) for prefix in active):
-            shutil.rmtree(directory)
+        if (
+            directory.is_dir()
+            and not directory.is_symlink()
+            and not any(directory.name.startswith(prefix) for prefix in active)
+        ):
+            try:
+                key = UUID(directory.name[:36])
+                with processing_lock(root.parent, key):
+                    shutil.rmtree(directory)
+            except (ValueError, BlockingIOError, FileNotFoundError):
+                continue
 
 
 def main():
@@ -55,7 +67,9 @@ def main():
             last_cleanup = time.monotonic()
             while not stopped.is_set():
                 try:
-                    worked = run_once(sessions, settings, provider)
+                    worked = purge_once(sessions, settings.storage_root) or run_once(
+                        sessions, settings, provider
+                    )
                     if worked or time.monotonic() - last_cleanup >= 30:
                         cleanup(sessions, settings.storage_root / "processing")
                         last_cleanup = time.monotonic()

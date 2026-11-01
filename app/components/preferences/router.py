@@ -1,13 +1,41 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 
 from app.components.accounts.schemas import StrictInput
 from app.components.preferences import service
-from app.components.preferences.schemas import FormatInput, ProfilePatch
+from app.components.preferences.schemas import CloseInput, FormatInput, ProfilePatch
 from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf
 
 router = APIRouter(prefix="/v1/preferences", dependencies=[Depends(ensure_csrf)])
+
+
+@router.post("/close")
+def close(
+    data: CloseInput,
+    request: Request,
+    response: Response,
+    tasks: BackgroundTasks,
+    identity: IdentityDep,
+    session: SessionDep,
+):
+    from app.components.accounts.router import throttle
+    from app.components.preferences.closure import close_account
+    from app.components.preferences.purge import purge_once
+
+    throttle(request, "login")
+    key = close_account(session, identity.id, data)
+    tasks.add_task(
+        purge_once, request.app.state.sessions, request.app.state.settings.storage_root, key
+    )
+    response.delete_cookie(
+        "sessionid",
+        path="/",
+        secure=request.app.state.settings.cookie_secure,
+        httponly=True,
+        samesite="lax",
+    )
+    return {"closed": True}
 
 
 @router.get("")
