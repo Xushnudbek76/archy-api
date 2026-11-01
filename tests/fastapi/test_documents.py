@@ -28,6 +28,7 @@ def test_document_library_contract_and_owner_isolation(api_client):
     assert saved.status_code == 201
     document = saved.json()
     assert set(document) == {
+        "isPinned",
         "id",
         "title",
         "courseId",

@@ -2,17 +2,16 @@ from uuid import UUID
 
 import anyio
 from fastapi import APIRouter, Depends, Request
-from starlette.datastructures import QueryParams
 
 from app.components.accounts.schemas import StrictInput
 from app.components.documents import service
 from app.components.documents.extraction import extract_pdf
 from app.components.documents.pdf import MAX_PDF_BYTES, file_name, pdf_response, validate_pdf
-from app.components.documents.schemas import DocumentInput, DocumentPatch
+from app.components.documents.schemas import DocumentInput, DocumentPatch, PinInput
 from app.libs.body import receive_body
 from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf, request_identity
 from app.libs.errors import ApiError
-from app.libs.pagination import page_query
+from app.libs.pagination import library_query
 from app.libs.workers import run_worker
 
 router = APIRouter(prefix="/v1/documents", dependencies=[Depends(ensure_csrf)])
@@ -20,17 +19,8 @@ router = APIRouter(prefix="/v1/documents", dependencies=[Depends(ensure_csrf)])
 
 @router.get("")
 def documents(request: Request, identity: IdentityDep, session: SessionDep):
-    query = request.query_params
-    if set(query) - {"page", "q", "courseId"} or any(len(query.getlist(key)) != 1 for key in query):
-        raise ApiError(400)
-    if len(query.get("q", "")) > 100:
-        raise ApiError(400)
-    try:
-        course_id = UUID(query["courseId"]) if "courseId" in query else None
-    except ValueError:
-        raise ApiError(400) from None
-    page = page_query(QueryParams({"page": query.get("page", "1")}))
-    return service.list_documents(session, identity.id, page, query.get("q", ""), course_id)
+    page, q, course_id = library_query(request.query_params)
+    return service.list_documents(session, identity.id, page, q, course_id)
 
 
 @router.post("", status_code=201)
@@ -51,6 +41,11 @@ def update(document_id: UUID, data: DocumentPatch, identity: IdentityDep, sessio
 @router.post("/{document_id}/archive")
 def archive(document_id: UUID, data: StrictInput, identity: IdentityDep, session: SessionDep):
     return service.archive_document(session, identity.id, document_id)
+
+
+@router.post("/{document_id}/pin")
+def pin(document_id: UUID, data: PinInput, identity: IdentityDep, session: SessionDep):
+    return service.pin_document(session, identity.id, document_id, data.pinned)
 
 
 def owned_unit(request, function, *args):

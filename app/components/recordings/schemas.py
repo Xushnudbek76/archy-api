@@ -38,6 +38,7 @@ class RecordingResponse(BaseModel):
     durationSeconds: float | None
     contentType: str
     createdAt: datetime
+    documentId: UUID | None = None
 
     @field_validator("createdAt")
     @classmethod

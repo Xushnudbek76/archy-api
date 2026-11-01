@@ -3,8 +3,10 @@ import os
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 
+from app.components.academics.service import lock_owner
 from app.components.accounts.models import now
 from app.components.courses.models import Course
+from app.components.courses.service import ensure_writable
 from app.components.documents.models import Document
 from app.components.documents.schemas import DocumentDetail, DocumentPage, DocumentResponse
 from app.components.documents.storage import DocumentStorage
@@ -17,6 +19,7 @@ def document_response(document, *, detail=False):
     data = dict(
         id=document.id,
         title=document.title,
+        isPinned=document.is_pinned,
         courseId=document.course_id,
         recordingId=document.recording_id,
         hasPdf=document.pdf_size_bytes is not None,
@@ -39,6 +42,7 @@ def references(session, owner_id, course_id, recording_id):
         ).first()
         if course is None:
             raise ApiError(404)
+        ensure_writable(session, owner_id, course)
     if recording_id is not None:
         recording = session.scalars(
             select(Recording)
@@ -66,7 +70,9 @@ def materialize_recording(session, recording):
     )
 
 
-def owned_document(session, owner_id, key, *, locked=False, archived=False):
+def owned_document(session, owner_id, key, *, locked=False, archived=False, writable=False):
+    if locked or writable:
+        lock_owner(session, owner_id)
     query = select(Document).where(Document.id == key, Document.owner_id == owner_id)
     if not archived:
         query = query.where(Document.archived_at.is_(None))
@@ -75,10 +81,13 @@ def owned_document(session, owner_id, key, *, locked=False, archived=False):
     document = session.scalars(query).first()
     if document is None:
         raise ApiError(404)
+    if (locked or writable) and document.course_id:
+        ensure_writable(session, owner_id, session.get(Course, document.course_id))
     return document
 
 
 def create_document(session, owner_id, data):
+    lock_owner(session, owner_id)
     references(session, owner_id, data.courseId, data.recordingId)
     document = Document(
         owner_id=owner_id, title=data.title, course_id=data.courseId, recording_id=data.recordingId
@@ -101,7 +110,7 @@ def list_documents(session, owner_id, page, q="", course_id=None):
         query = query.where(Document.course_id == course_id)
     total = session.scalar(select(func.count()).select_from(query.subquery()))
     rows = session.scalars(
-        query.order_by(Document.created_at.desc(), Document.id.desc())
+        query.order_by(Document.is_pinned.desc(), Document.created_at.desc(), Document.id.desc())
         .offset((page - 1) * PAGE_SIZE)
         .limit(PAGE_SIZE)
     ).all()
@@ -132,6 +141,13 @@ def update_document(session, owner_id, key, data):
     return document_response(document)
 
 
+def pin_document(session, owner_id, key, pinned):
+    document = owned_document(session, owner_id, key, locked=True)
+    document.is_pinned = pinned
+    session.commit()
+    return document_response(document)
+
+
 def archive_document(session, owner_id, key):
     document = owned_document(session, owner_id, key, locked=True, archived=True)
     if document.archived_at is None:
@@ -142,7 +158,7 @@ def archive_document(session, owner_id, key):
 
 
 def authorize_upload(session, owner_id, key):
-    document = owned_document(session, owner_id, key)
+    document = owned_document(session, owner_id, key, writable=True)
     if document.pdf_size_bytes is not None:
         raise ApiError(409, "pdf_exists", "This document already has a PDF.")
     return document_response(document)

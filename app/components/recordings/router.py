@@ -10,7 +10,7 @@ from app.components.recordings.schemas import UploadInput
 from app.libs.body import receive_body
 from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf, request_identity
 from app.libs.errors import ApiError
-from app.libs.pagination import page_query
+from app.libs.pagination import library_query, page_query
 from app.libs.workers import run_worker
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(ensure_csrf)])
@@ -123,7 +123,15 @@ def cancel(
 
 @router.get("/recordings")
 def recordings(request: Request, identity: IdentityDep, session: SessionDep):
-    return service.list_recordings(session, identity.id, page_query(request.query_params))
+    page, q, course_id = library_query(request.query_params)
+    return service.list_recordings(session, identity.id, page, q=q, course_id=course_id)
+
+
+@router.post("/recordings/{recording_id}/study-document")
+def study_document(
+    recording_id: UUID, data: StrictInput, identity: IdentityDep, session: SessionDep
+):
+    return service.open_study_document(session, identity.id, recording_id)
 
 
 @router.api_route("/recordings/{recording_id}/audio", methods=["GET", "HEAD"])

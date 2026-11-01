@@ -4,8 +4,11 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
+from app.components.academics.service import lock_owner
 from app.components.accounts.models import now
 from app.components.courses.models import Course
+from app.components.courses.service import ensure_writable
+from app.components.documents.models import Document
 from app.components.recordings.media import InvalidAudio, inspect_audio
 from app.components.recordings.models import Recording, Upload
 from app.components.recordings.schemas import RecordingResponse, UploadResponse
@@ -35,7 +38,7 @@ def unavailable():
     return ApiError(503, "storage_unavailable", "Recording storage is temporarily unavailable.")
 
 
-def recording_response(recording, course):
+def recording_response(recording, course, document_id=None):
     return RecordingResponse(
         id=recording.id,
         courseId=course.id,
@@ -45,6 +48,7 @@ def recording_response(recording, course):
         durationSeconds=recording.duration_seconds,
         contentType=recording.content_type,
         createdAt=recording.created_at,
+        documentId=document_id,
     )
 
 
@@ -87,6 +91,7 @@ def read_upload(session, owner_id, key):
 
 
 def admit_upload(session, owner_id, data, storage_root, max_duration_seconds=1200):
+    lock_owner(session, owner_id)
     existing = session.scalars(select(Upload).where(Upload.id == data.id).with_for_update()).first()
     if existing is None:
         course = session.scalars(
@@ -98,6 +103,7 @@ def admit_upload(session, owner_id, data, storage_root, max_duration_seconds=120
         ).first()
         if course is None:
             raise ApiError(404)
+        ensure_writable(session, owner_id, course)
         try:
             if LocalRecordingStorage(storage_root).available_bytes() < data.sizeBytes * 2:
                 raise ApiError(
@@ -135,6 +141,7 @@ def admit_upload(session, owner_id, data, storage_root, max_duration_seconds=120
 
 
 def receive_chunk(session, owner_id, key, offset, body, storage_root):
+    lock_owner(session, owner_id)
     upload = owned_upload(session, owner_id, key, locked=True)
     if upload.status != "UPLOADING" or offset > upload.uploaded_bytes:
         raise conflict()
@@ -165,6 +172,7 @@ def receive_chunk(session, owner_id, key, offset, body, storage_root):
 
 
 def complete_upload(session, owner_id, key, storage_root, processing=None):
+    lock_owner(session, owner_id)
     upload = owned_upload(session, owner_id, key, locked=True)
     if upload.status in {"ACCEPTED", "FAILED"}:
         return upload_response(session, upload)
@@ -213,6 +221,7 @@ def complete_upload(session, owner_id, key, storage_root, processing=None):
 
 
 def cancel_upload(session, owner_id, key, storage_root):
+    lock_owner(session, owner_id)
     upload = owned_upload(session, owner_id, key, locked=True)
     if upload.status == "ACCEPTED":
         raise conflict()
@@ -238,21 +247,79 @@ def list_uploads(session, owner_id, page):
     return page_response([upload_response(session, row) for row in rows], total, page)
 
 
-def list_recordings(session, owner_id, page):
+def list_recordings(session, owner_id, page, *, q="", course_id=None):
     query = (
         select(Recording, Course)
         .join(Course, Course.id == Recording.course_id)
         .where(Course.owner_id == owner_id)
     )
+    if q:
+        escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        query = query.where(Recording.title.ilike(f"%{escaped}%", escape="\\"))
+    if course_id is not None:
+        query = query.where(Recording.course_id == course_id)
     total = session.scalar(select(func.count()).select_from(query.subquery()))
     rows = session.execute(
         query.order_by(Recording.created_at.desc(), Recording.id.desc())
         .offset((page - 1) * PAGE_SIZE)
         .limit(PAGE_SIZE)
     ).all()
+    documents = recording_documents(session, owner_id, [recording.id for recording, _ in rows])
     return page_response(
-        [recording_response(recording, course) for recording, course in rows], total, page
+        [
+            recording_response(recording, course, documents.get(recording.id))
+            for recording, course in rows
+        ],
+        total,
+        page,
     )
+
+
+def recording_documents(session, owner_id, ids):
+    if not ids:
+        return {}
+    rows = session.execute(
+        select(Document.recording_id, Document.id)
+        .where(
+            Document.owner_id == owner_id,
+            Document.recording_id.in_(ids),
+            Document.archived_at.is_(None),
+        )
+        .order_by(
+            (Document.id != Document.recording_id).desc(),
+            Document.created_at.desc(),
+            Document.id.desc(),
+        )
+    ).all()
+    result = {}
+    for recording_id, document_id in rows:
+        result.setdefault(recording_id, document_id)
+    return result
+
+
+def open_study_document(session, owner_id, key):
+    from app.components.documents.service import materialize_recording
+
+    lock_owner(session, owner_id)
+    recording = session.scalar(
+        select(Recording)
+        .join(Course, Course.id == Recording.course_id)
+        .where(Recording.id == key, Course.owner_id == owner_id)
+        .with_for_update(of=Recording)
+    )
+    if recording is None:
+        raise ApiError(404)
+    existing = recording_documents(session, owner_id, [key]).get(key)
+    if existing:
+        return {"documentId": existing}
+    course = session.get(Course, recording.course_id)
+    ensure_writable(session, owner_id, course)
+    materialize_recording(session, recording)
+    session.commit()
+    document_id = recording_documents(session, owner_id, [key]).get(key)
+    if document_id is None:
+        raise ApiError(409, "document_archived", "This recording’s study document is archived.")
+    return {"documentId": document_id}
 
 
 @dataclass(frozen=True)

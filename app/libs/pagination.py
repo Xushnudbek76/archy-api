@@ -1,4 +1,7 @@
 from typing import TypedDict
+from uuid import UUID
+
+from starlette.datastructures import QueryParams
 
 from app.libs.errors import ApiError
 
@@ -35,3 +38,18 @@ def page_response[T](items: list[T], total: int, page: int) -> Page[T]:
         "total": total,
         "nextPage": page + 1 if page * PAGE_SIZE < total else None,
     }
+
+
+def library_query(query):
+    if (
+        set(query) - {"page", "q", "courseId"}
+        or any(len(query.getlist(key)) != 1 for key in query)
+        or len(query.get("q", "")) > 100
+    ):
+        raise ApiError(400)
+    try:
+        course_id = UUID(query["courseId"]) if "courseId" in query else None
+    except ValueError:
+        raise ApiError(400) from None
+    page = page_query(QueryParams({"page": query.get("page", "1")}))
+    return page, query.get("q", ""), course_id

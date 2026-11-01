@@ -2,6 +2,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.components.accounts.schemas import StrictInput
 from app.components.courses.schemas import CourseInput, CourseResponse
 
 
@@ -11,6 +12,7 @@ class DocumentInput(CourseInput):
 
 
 class DocumentResponse(CourseResponse):
+    isPinned: bool = False
     courseId: UUID | None
     recordingId: UUID | None
     hasPdf: bool
@@ -40,3 +42,7 @@ class DocumentPatch(DocumentInput):
         if not self.model_fields_set or ("title" in self.model_fields_set and self.title is None):
             raise ValueError("Supply a document field.")
         return self
+
+
+class PinInput(StrictInput):
+    pinned: bool
