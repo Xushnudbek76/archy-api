@@ -32,6 +32,7 @@ def create_app(settings):
     from app.components.courses.router import router as courses_router
     from app.components.demo.router import router as demo_router
     from app.components.documents.router import router as documents_router
+    from app.components.oauth.router import router as oauth_router
     from app.components.preferences.router import router as preferences_router
     from app.components.processing.router import router as processing_router
     from app.components.recordings.router import router as recordings_router
@@ -51,6 +52,7 @@ def create_app(settings):
     application.include_router(accounts_router)
     application.include_router(academics_router)
     application.include_router(preferences_router)
+    application.include_router(oauth_router)
     application.state.timetable_import_limiter = anyio.CapacityLimiter(2)
     application.include_router(courses_router)
     application.state.outbox = []
