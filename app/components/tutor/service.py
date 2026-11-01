@@ -2,6 +2,7 @@ from datetime import UTC
 
 from sqlalchemy import func, select
 
+from app.components.academics.service import lock_owner
 from app.components.documents.service import owned_document
 from app.components.tutor.models import Conversation, Message
 from app.libs.errors import ApiError
@@ -28,6 +29,8 @@ def message_response(row):
 
 
 def owned_conversation(session, owner_id, conversation_id, *, locked=False):
+    if locked:
+        lock_owner(session, owner_id)
     query = select(Conversation).where(
         Conversation.id == conversation_id, Conversation.owner_id == owner_id
     )
@@ -36,7 +39,7 @@ def owned_conversation(session, owner_id, conversation_id, *, locked=False):
     row = session.scalar(query)
     if row is None:
         raise ApiError(404)
-    owned_document(session, owner_id, row.document_id)
+    owned_document(session, owner_id, row.document_id, writable=locked)
     return row
 
 

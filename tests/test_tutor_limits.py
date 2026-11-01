@@ -137,7 +137,7 @@ def test_canceled_provider_stream_releases_generation_without_completed_message(
 
     monkeypatch.setattr("app.components.tutor.provider.stream_answer", waiting)
     request = SimpleNamespace(
-        app=client.app, cookies=dict(client.cookies), is_disconnected=disconnected
+        app=client.app, headers={}, cookies=dict(client.cookies), is_disconnected=disconnected
     )
 
     async def cancel():
@@ -175,7 +175,7 @@ def test_response_header_disconnect_releases_unstarted_tutor_reservation(api_cli
     client = api_client
     _, created = conversation(client)
     data = MessageInput(message="Explain lecture", language="en", requestId=str(uuid4()))
-    request = SimpleNamespace(app=client.app, cookies=dict(client.cookies))
+    request = SimpleNamespace(app=client.app, headers={}, cookies=dict(client.cookies))
 
     async def disconnected_send(_event):
         raise OSError("Synthetic response header disconnect")
@@ -213,7 +213,7 @@ def test_cancellation_during_preparation_releases_committed_reservation(api_clie
     client = api_client
     _, created = conversation(client)
     data = MessageInput(message="Explain lecture", language="en", requestId=str(uuid4()))
-    request = SimpleNamespace(app=client.app, cookies=dict(client.cookies))
+    request = SimpleNamespace(app=client.app, headers={}, cookies=dict(client.cookies))
     prepared, release = threading.Event(), threading.Event()
     original = turns.prepare
 

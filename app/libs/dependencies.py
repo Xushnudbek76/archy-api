@@ -29,6 +29,9 @@ def request_identity(session, request: Request):
     from app.libs.errors import ApiError
 
     identity = current_identity(session, request.cookies.get("sessionid", ""))
+    expected = request.headers.get("X-Workspace-User")
+    if expected is not None and expected != str(identity.id):
+        raise ApiError(403, "account_changed", "Your account changed. Reload this workspace.")
     if identity.id == DEMO_USER_ID and request.url.path != "/v1/auth/logout":
         if not request.app.state.settings.demo_enabled:
             raise ApiError(403)

@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from sqlalchemy import func, select
 
+from app.components.academics.service import lock_owner
 from app.components.accounts.models import now
 from app.components.documents.service import owned_document
 from app.components.documents.sources import document_sources, source_revision
@@ -15,7 +16,7 @@ from app.libs.errors import ApiError
 
 
 def prepare(session, owner_id, document_id):
-    document = owned_document(session, owner_id, document_id)
+    document = owned_document(session, owner_id, document_id, writable=True)
     sources = document_sources(session, owner_id, document_id)
     if not sources:
         raise ApiError(
@@ -82,13 +83,15 @@ def quiz_response(quiz):
 
 
 def owned_quiz(session, owner_id, quiz_id, *, locked=False):
+    if locked:
+        lock_owner(session, owner_id)
     query = select(Quiz).where(Quiz.id == quiz_id)
     if locked:
         query = query.with_for_update()
     quiz = session.scalar(query)
     if quiz is None:
         raise ApiError(404)
-    owned_document(session, owner_id, quiz.document_id)
+    owned_document(session, owner_id, quiz.document_id, writable=locked)
     return quiz
 
 
