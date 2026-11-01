@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request
 
 from app.components.accounts.schemas import StrictInput
 from app.components.courses import service
-from app.components.courses.schemas import CourseInput
+from app.components.courses.schemas import CourseCreate, CoursePatch
 from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf
 from app.libs.pagination import page_query
 
@@ -20,12 +20,12 @@ def courses(request: Request, identity: IdentityDep, session: SessionDep):
 
 
 @router.post("", status_code=201)
-def create(data: CourseInput, identity: IdentityDep, session: SessionDep):
+def create(data: CourseCreate, identity: IdentityDep, session: SessionDep):
     return service.create_course(session, identity.id, data)
 
 
 @router.patch("/{course_id}")
-def rename(course_id: UUID, data: CourseInput, identity: IdentityDep, session: SessionDep):
+def rename(course_id: UUID, data: CoursePatch, identity: IdentityDep, session: SessionDep):
     return service.rename_course(session, identity.id, course_id, data)
 
 

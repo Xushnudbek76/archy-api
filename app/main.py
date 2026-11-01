@@ -27,6 +27,7 @@ def create_app(settings):
         engine.dispose()
 
     application = FastAPI(title="Archy API", redirect_slashes=False, lifespan=lifespan)
+    from app.components.academics.router import router as academics_router
     from app.components.accounts.router import router as accounts_router
     from app.components.courses.router import router as courses_router
     from app.components.demo.router import router as demo_router
@@ -47,6 +48,8 @@ def create_app(settings):
     application.state.chunk_limiter = anyio.CapacityLimiter(4)
     application.state.pdf_limiter = anyio.CapacityLimiter(2)
     application.include_router(accounts_router)
+    application.include_router(academics_router)
+    application.state.timetable_import_limiter = anyio.CapacityLimiter(2)
     application.include_router(courses_router)
     application.state.outbox = []
     application.state.account_limiter = AccountLimiter()

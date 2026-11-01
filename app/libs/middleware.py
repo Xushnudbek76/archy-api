@@ -69,7 +69,8 @@ class RequestMiddleware:
                     != b"application/json"
                 ):
                     raise ApiError(415, "invalid_request", "Send a JSON request.")
-                body = await receive_body(Request(scope, receive), 16384)
+                maximum = 512 * 1024 if scope["path"] == "/v1/academics/import/confirm" else 16384
+                body = await receive_body(Request(scope, receive), maximum)
                 original_receive = receive
                 delivered = False
 

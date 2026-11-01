@@ -23,10 +23,18 @@ def normalized_cookies(cookies):
 
 
 def legacy_shape(value):
+    additions = {
+        "maxDurationSeconds",
+        "professor",
+        "color",
+        "timetableId",
+        "readOnly",
+        "schedules",
+        "documentId",
+        "isPinned",
+    }
     if isinstance(value, dict):
-        value = {
-            key: legacy_shape(item) for key, item in value.items() if key != "maxDurationSeconds"
-        }
+        value = {key: legacy_shape(item) for key, item in value.items() if key not in additions}
     elif isinstance(value, list):
         value = [legacy_shape(item) for item in value]
     return value
