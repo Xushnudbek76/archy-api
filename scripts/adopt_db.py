@@ -54,6 +54,12 @@ def inspect_legacy_schema(connection):
 
 def verify_legacy_schema(connection, inventory):
     actual = inspect_legacy_schema(connection)
+    # Additive migrations must match their reviewed shapes before legacy comparison.
+    additions = json.loads((ROOT / "migrations/course-schedule-schema.json").read_text())
+    if all(row in actual[key] for key, rows in additions.items() for row in rows):
+        for key, rows in additions.items():
+            for row in rows:
+                actual[key].remove(row)
     column = {
         "table_name": "recordings_upload",
         "column_name": "max_duration_seconds",

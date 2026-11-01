@@ -5,7 +5,13 @@ from collections import OrderedDict, deque
 
 from app.libs.errors import ApiError
 
-LIMITS = {"demo": (30, 60), "login": (10, 60), "signup": (3, 3600), "reset": (3, 3600)}
+LIMITS = {
+    "demo": (30, 60),
+    "login": (10, 60),
+    "signup": (3, 3600),
+    "reset": (3, 3600),
+    "billing": (20, 60),
+}
 
 
 class AccountLimiter:

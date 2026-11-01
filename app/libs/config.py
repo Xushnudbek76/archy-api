@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlsplit
 
+from app.components.billing.config import BillingSettings, load_billing
+from app.components.oauth.config import OAuthSettings, load_oauth
 from app.components.processing.config import ProcessingSettings, load_processing
 
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
@@ -67,6 +69,8 @@ class Settings:
     smtp_password: str = field(default="", repr=False)
     smtp_tls: bool = True
     mail_from: str = "Archy <noreply@example.com>"
+    oauth: OAuthSettings = field(default_factory=OAuthSettings)
+    billing: BillingSettings = field(default_factory=BillingSettings)
 
 
 def load_settings(values) -> Settings:
@@ -135,6 +139,8 @@ def load_settings(values) -> Settings:
             values.get("SMTP_PASSWORD", ""),
             values.get("SMTP_TLS", "true") == "true",
             values.get("MAIL_FROM", "Archy <noreply@example.com>"),
+            load_oauth(values),
+            load_billing(values),
         )
     except (ValueError, TypeError, AttributeError):
         raise ValueError("Invalid application configuration") from None

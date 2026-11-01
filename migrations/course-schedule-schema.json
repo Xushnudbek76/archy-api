@@ -1,0 +1,47 @@
+{
+  "columns": [
+    {
+      "table_name": "courses_course",
+      "column_name": "professor",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": "''::character varying",
+      "character_maximum_length": 100
+    },
+    {
+      "table_name": "courses_course",
+      "column_name": "color",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": "'#396c50'::character varying",
+      "character_maximum_length": 7
+    },
+    {
+      "table_name": "courses_course",
+      "column_name": "timetable_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "YES",
+      "column_default": null,
+      "character_maximum_length": null
+    }
+  ],
+  "constraints": [
+    {
+      "table_name": "courses_course",
+      "name": "ck_courses_course_color_valid",
+      "definition": "CHECK (((color)::text ~ '^#[0-9a-fA-F]{6}$'::text))",
+      "condeferrable": false,
+      "condeferred": false
+    },
+    {
+      "table_name": "courses_course",
+      "name": "fk_courses_timetable_owner",
+      "definition": "FOREIGN KEY (owner_id, timetable_id) REFERENCES academics_timetable(owner_id, id)",
+      "condeferrable": false,
+      "condeferred": false
+    }
+  ]
+}

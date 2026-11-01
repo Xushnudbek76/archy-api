@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -11,6 +12,7 @@ from sqlalchemy import (
     String,
     Text,
     Uuid,
+    false,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -23,6 +25,7 @@ class Document(Base):
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
     owner_id = Column(Uuid, ForeignKey("archy.accounts_user.id"), nullable=False)
     title = Column(String(100), nullable=False)
+    is_pinned = Column(Boolean, nullable=False, default=False, server_default=false())
     course_id = Column(Uuid, ForeignKey("archy.courses_course.id"), nullable=True)
     recording_id = Column(Uuid, ForeignKey("archy.recordings_recording.id"), nullable=True)
     file_name = Column(String(255), nullable=True)
@@ -49,4 +52,5 @@ class Document(Base):
         ),
         CheckConstraint("text IS NULL OR length(text) <= 500000", name="text_size_valid"),
         Index("ix_documents_owner_created", "owner_id", "created_at", "id"),
+        Index("ix_documents_owner_recording", "owner_id", "recording_id"),
     )
