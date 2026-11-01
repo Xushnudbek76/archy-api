@@ -18,6 +18,8 @@ class ProcessingSettings:
     heartbeat_seconds: int = 30
     max_attempts: int = 3
     max_deferrals: int = 24
+    summary_language: str | None = None
+    note_instructions: str = ""
 
     def snapshot(self):
         return {

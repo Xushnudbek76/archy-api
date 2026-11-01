@@ -1,8 +1,5 @@
 import logging
-import shutil
-import tempfile
 from datetime import timedelta
-from pathlib import Path
 
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -22,6 +19,7 @@ from app.components.processing.providers import ProviderFailure
 from app.components.processing.queue import LeaseLost, claim, heartbeat, mutate, release
 from app.components.processing.schemas import LectureNote, Transcription
 from app.components.recordings.storage import LocalRecordingStorage
+from app.libs.processing_files import processing_workspace
 
 logger = logging.getLogger("archy")
 
@@ -80,11 +78,7 @@ def save_chunk(sessions, held, sequence, data, offset, samples):
 
 def transcribe(sessions, settings, held, provider):
     config = held.config
-    root = settings.storage_root / "processing"
-    root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    root.chmod(0o700)
-    directory = Path(tempfile.mkdtemp(prefix=f"{held.id}-{held.token}-", dir=root))
-    try:
+    with processing_workspace(sessions, settings, held) as directory:
         source = LocalRecordingStorage(settings.storage_root).recording_path(held.recording_id)
         manifest = prepare_audio(source, directory, config)
 
@@ -150,8 +144,6 @@ def transcribe(sessions, settings, held, provider):
             job.stage = "TRANSCRIBED"
 
         mutate(sessions, held, assemble)
-    finally:
-        shutil.rmtree(directory, ignore_errors=True)
 
 
 def summarize(sessions, held, provider):
@@ -162,7 +154,12 @@ def summarize(sessions, held, provider):
             for p in session.scalars(select(NotePart).where(NotePart.job_id == job.id))
         }
         job.stage = "SUMMARIZING"
-        return transcript.text, transcript.language, parts, job.summary_model
+        return (
+            transcript.text,
+            held.config.summary_language or transcript.language,
+            parts,
+            job.summary_model,
+        )
 
     source, language, saved, model = mutate(sessions, held, load)
     for level in range(8):

@@ -1,9 +1,11 @@
+from dataclasses import replace
 from uuid import UUID
 
 import anyio
 from fastapi import APIRouter, Depends, Request
 
 from app.components.documents.router import owned_unit
+from app.components.preferences.service import processing_preferences
 from app.components.study import generation, service
 from app.components.study.schemas import AttemptInput, NotesInput, QuizInput, RetryInput
 from app.libs.dependencies import IdentityDep, SessionDep, ensure_csrf
@@ -21,21 +23,30 @@ def notes(document_id: UUID, identity: IdentityDep, session: SessionDep):
 @router.post("/v1/documents/{document_id}/study-notes")
 async def create_notes(document_id: UUID, data: NotesInput, request: Request):
     _, sources, revision = await run_worker(owned_unit, request, service.prepare, document_id)
+    preferences = await run_worker(owned_unit, request, processing_preferences)
+    language = (
+        data.language
+        if "language" in data.model_fields_set
+        else preferences["summary_language"] or "en"
+    )
     limiter = request.app.state.study_limiter
     try:
         limiter.acquire_nowait()
     except anyio.WouldBlock:
         raise ApiError(429, retry_after=5) from None
     try:
-        config = request.app.state.settings.processing
-        content = await run_worker(generation.generate_notes, sources, data.language, config)
+        config = replace(
+            request.app.state.settings.processing,
+            note_instructions=preferences["note_instructions"],
+        )
+        content = await run_worker(generation.generate_notes, sources, language, config)
         return await run_worker(
             owned_unit,
             request,
             service.save_notes,
             document_id,
             revision,
-            data.language,
+            language,
             config.backend,
             content,
         )

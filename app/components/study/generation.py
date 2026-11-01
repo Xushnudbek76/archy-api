@@ -163,7 +163,7 @@ def generate_notes(sources, language, config):
                     language,
                     NotesContent,
                     "Create a concise overview and up to six study sections. "
-                    "Overview max1200 characters.",
+                    "Overview max1200 characters. " + config.note_instructions,
                     config,
                     deadline,
                 )

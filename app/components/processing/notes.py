@@ -19,7 +19,13 @@ def request_body(source, language, config):
         "messages": [
             {
                 "role": "system",
-                "content": PROMPT.format(language="Korean" if language == "ko" else "English"),
+                "content": PROMPT.format(language="Korean" if language == "ko" else "English")
+                + (
+                    "\nNote organization preference (keep source fidelity and the JSON schema): "
+                    + config.note_instructions
+                    if config.note_instructions
+                    else ""
+                ),
             },
             {"role": "user", "content": "<lecture_content>\n" + source + "\n</lecture_content>"},
         ],

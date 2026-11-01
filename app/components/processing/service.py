@@ -10,11 +10,18 @@ from app.libs.errors import ApiError
 
 def enqueue(session, upload, configuration=None):
     if upload.max_duration_seconds is not None:
+        from app.components.preferences.service import processing_preferences
+
+        owner_id = session.scalar(select(Course.owner_id).where(Course.id == upload.course_id))
+        snapshot = {
+            **(configuration or ProcessingSettings()).snapshot(),
+            **processing_preferences(session, owner_id),
+        }
         session.execute(
             insert(Job)
             .values(
                 recording_id=upload.id,
-                configuration=(configuration or ProcessingSettings()).snapshot(),
+                configuration=snapshot,
             )
             .on_conflict_do_nothing(index_elements=["recording_id"])
         )
